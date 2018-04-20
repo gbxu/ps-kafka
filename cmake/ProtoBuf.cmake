@@ -15,7 +15,7 @@ endif()
 
 
 # place where to generate protobuf sources
-set(proto_gen_folder "${PROJECT_BINARY_DIR}/include/pslite/proto")
+set(proto_gen_folder "${PROJECT_BINARY_DIR}/include/pskafka/proto")
 include_directories(SYSTEM "${PROJECT_BINARY_DIR}/include")
 
 set(PROTOBUF_GENERATE_CPP_APPEND_PATH TRUE)
@@ -23,10 +23,10 @@ set(PROTOBUF_GENERATE_CPP_APPEND_PATH TRUE)
 ################################################################################################
 # Modification of standard 'protobuf_generate_cpp()' with output dir parameter and python support
 # Usage:
-#   pslite_protobuf_generate_cpp_py(<output_dir> <srcs_var> <hdrs_var> <python_var> <proto_files>)
-function(pslite_protobuf_generate_cpp_py output_dir srcs_var hdrs_var python_var work_path proto_path)
+#   pskafka_protobuf_generate_cpp_py(<output_dir> <srcs_var> <hdrs_var> <python_var> <proto_files>)
+function(pskafka_protobuf_generate_cpp_py output_dir srcs_var hdrs_var python_var work_path proto_path)
   if(NOT ARGN)
-    message(SEND_ERROR "Error: pslite_protobuf_generate_cpp_py() called without any proto files")
+    message(SEND_ERROR "Error: pskafka_protobuf_generate_cpp_py() called without any proto files")
     return()
   endif()
 
