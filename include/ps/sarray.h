@@ -1,5 +1,6 @@
 /**
  *  Copyright (c) 2015 by Contributors
+ *  reviewed by gbxu 2018
  */
 #ifndef PS_SARRAY_H_
 #define PS_SARRAY_H_

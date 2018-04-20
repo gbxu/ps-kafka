@@ -1,5 +1,6 @@
 /**
  *  Copyright (c) 2015 by Contributors
+ *  reviewed by gbxu 2018
  * \file   parallel_kv_match.h
  * \brief  paralle key-value pairs matching
  */

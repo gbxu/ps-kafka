@@ -1,5 +1,6 @@
 /**
  *  Copyright (c) 2015 by Contributors
+ *  reviewed by gbxu 2018
  */
 #ifndef PS_INTERNAL_VAN_H_
 #define PS_INTERNAL_VAN_H_
@@ -83,15 +84,18 @@ class Van {
     /**
      * \brief connect to a node
      */
-    virtual void Connect(const Node &node) = 0;
-
+    //virtual void Connect(const Node &node) = 0;
+    virtual void Connect(const Node &node){};
+    virtual void Connect(const char *brokers, TP tp){};
     /**
      * \brief bind to my node
      * do multiple retries on binding the port. since it's possible that
      * different nodes on the same machine picked the same port
      * \return return the port binded, -1 if failed.
      */
-    virtual int Bind(const Node &node, int max_retry) = 0;
+    //virtual int Bind(const Node &node, int max_retry);
+    virtual int Bind(const Node &node, int max_retry){};
+    virtual int Bind(const char *brokers, TP tp){};
 
     /**
      * \brief block until received a message

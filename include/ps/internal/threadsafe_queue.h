@@ -1,5 +1,6 @@
 /**
  *  Copyright (c) 2015 by Contributors
+ *  reviewed by gbxu 2018
  */
 #ifndef PS_INTERNAL_THREADSAFE_QUEUE_H_
 #define PS_INTERNAL_THREADSAFE_QUEUE_H_

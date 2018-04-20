@@ -1,5 +1,6 @@
 /*!
  *  Copyright (c) 2015 by Contributors
+ *  review by gbxu 2018
  * \file logging.h
  * \brief defines logging macros of dmlc
  *  allows use of GLOG, fall back to internal

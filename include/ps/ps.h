@@ -1,5 +1,6 @@
 /*!
  *  Copyright (c) 2015 by Contributors
+ *  reviewed by gbxu 2018
  * @file   ps.h
  * \brief  The parameter server interface
  */

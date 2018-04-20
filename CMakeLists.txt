@@ -15,7 +15,7 @@ set(pslite_LINKER_LIBS_L_DEBUG "" )
 set(pslite_INCLUDE_DIR_L "" )
 
 # ---[ zmq
-include("cmake/External/zmq.cmake")
+include("cmake/External/rdkafka.cmake")
 include_directories(pslite ${ZMQ_INCLUDE_DIRS})
 list(APPEND pslite_LINKER_LIBS_L ${ZMQ_LIBRARIES})
 # ---[ Google-protobuf

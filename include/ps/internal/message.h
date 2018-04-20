@@ -1,5 +1,6 @@
 /**
  *  Copyright (c) 2015 by Contributors
+ *  DONE: modified by gbxu 2018
  */
 #ifndef PS_INTERNAL_MESSAGE_H_
 #define PS_INTERNAL_MESSAGE_H_
@@ -64,7 +65,8 @@ struct Node {
   /** \brief the empty value */
   static const int kEmpty;
   /** \brief default constructor */
-  Node() : id(kEmpty), port(kEmpty), is_recovery(false) {}
+  //Node() : id(kEmpty), port(kEmpty), is_recovery(false) {}
+  Node() : id(kEmpty), is_recovery(false) {}
   /** \brief node roles */
   enum Role { SERVER, WORKER, SCHEDULER };
   /** \brief get debug string */
@@ -72,7 +74,7 @@ struct Node {
     std::stringstream ss;
     ss << "role=" << (role == SERVER ? "server" : (role == WORKER ? "worker" : "scheduler"))
        << (id != kEmpty ? ", id=" + std::to_string(id) : "")
-       << ", ip=" << hostname << ", port=" << port << ", is_recovery=" << is_recovery;
+       << ", ip=" << hostname/* << ", port=" << port */<< ", is_recovery=" << is_recovery;
 
     return ss.str();
   }
@@ -91,7 +93,7 @@ struct Node {
   /** \brief hostname or ip */
   std::string hostname;
   /** \brief the port this node is binding */
-  int port;
+  //int port;
   /** \brief whether this node is created by failover */
   bool is_recovery;
 };
@@ -139,7 +141,8 @@ struct Meta {
   /** \brief default constructor */
   Meta() : head(kEmpty), app_id(kEmpty), customer_id(kEmpty),
            timestamp(kEmpty), sender(kEmpty), recver(kEmpty),
-           request(false), push(false), simple_app(false) {}
+           request(false), push(false), simple_app(false),
+           topic(sEmpty),partition(kEmpty) {}
   std::string DebugString() const {
     std::stringstream ss;
     if (sender == Node::kEmpty) {
@@ -185,6 +188,10 @@ struct Meta {
   bool push;
   /** \brief whether or not it's for SimpleApp */
   bool simple_app;
+  /** \brief the topic what the message will be sent to */
+  enum Topic { TOWORKERS, TOSERVERS, TOSCHEDULER};
+  Topic topic;
+  int partition;
   /** \brief an string body */
   std::string body;
   /** \brief data type of message.data[i] */

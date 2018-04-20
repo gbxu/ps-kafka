@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# ps-lite documentation build configuration file, created by
+# ps-kafka documentation build configuration file, created by
 # sphinx-quickstart on Sun Mar 20 20:12:23 2016.
 #
 # Mu: additional changes
@@ -56,9 +56,9 @@ source_suffix = ['.md']
 master_doc = 'index'
 
 # General information about the project.
-project = u'ps-lite'
-copyright = u'2016, ps-lite developers'
-author = u'ps-lite developers'
+project = u'ps-kafka'
+copyright = u'2016, ps-kafka developers'
+author = u'ps-kafka developers'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
@@ -232,8 +232,8 @@ latex_elements = {
 # (source start file, target name, title,
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
-    (master_doc, 'ps-lite.tex', u'ps-lite Documentation',
-     u'ps-lite developers', 'manual'),
+    (master_doc, 'ps-kafka.tex', u'ps-kafka Documentation',
+     u'ps-kafka developers', 'manual'),
 ]
 
 # The name of an image file (relative to this directory) to place at the top of
@@ -262,7 +262,7 @@ latex_documents = [
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
 man_pages = [
-    (master_doc, 'ps-lite', u'ps-lite Documentation',
+    (master_doc, 'ps-kafka', u'ps-kafka Documentation',
      [author], 1)
 ]
 
@@ -276,8 +276,8 @@ man_pages = [
 # (source start file, target name, title, author,
 #  dir menu entry, description, category)
 texinfo_documents = [
-    (master_doc, 'ps-lite', u'ps-lite Documentation',
-     author, 'ps-lite', 'One line description of project.',
+    (master_doc, 'ps-kafka', u'ps-kafka Documentation',
+     author, 'ps-kafka', 'One line description of project.',
      'Miscellaneous'),
 ]
 
@@ -297,14 +297,14 @@ curr_path = os.path.dirname(os.path.abspath(os.path.expanduser(__file__)))
 sys.path.insert(0, curr_path)
 from sphinx_util import MarkdownParser, AutoStructify, generate_doxygen_xml
 
-MarkdownParser.github_doc_root = 'https://github.com/dmlc/ps-lite/tree/master/'
+MarkdownParser.github_doc_root = 'https://github.com/dmlc/ps-kafka/tree/master/'
 source_parsers = {
     '.md': MarkdownParser,
     '.Rmd': MarkdownParser,
 }
 
-breathe_projects = {'ps-lite' : 'xml/'}
-breathe_default_project = 'ps-lite'
+breathe_projects = {'ps-kafka' : 'xml/'}
+breathe_default_project = 'ps-kafka'
 
 doc_root = 'http://dmlc.ml'
 def setup(app):

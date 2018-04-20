@@ -1,5 +1,6 @@
 /**
  *  Copyright (c) 2015 by Contributors
+ *  DONE: modified by gbxu 2018
  */
 #ifndef PS_SIMPLE_APP_H_
 #define PS_SIMPLE_APP_H_
@@ -81,6 +82,8 @@ class SimpleApp {
    * \param request_handle the request handle
    */
   virtual inline void set_request_handle(const Handle& request_handle) {
+    //src/kvstore/kvstore_dist_server.h will call this function
+    // in that file, DataHandle or CommandHandle  will be set as request_handle
     CHECK(request_handle) << "invalid request handle";
     request_handle_ = request_handle;
   }
@@ -129,10 +132,10 @@ inline SimpleApp::SimpleApp(int app_id, int customer_id) : SimpleApp() {
 }
 
 inline int SimpleApp::Request(int req_head, const std::string& req_body, int recv_id) {
-  // setup message
+  // setup message //this function will be called in mxnet
   Message msg;
   msg.meta.head = req_head;
-  if (req_body.size()) msg.meta.body = req_body;
+  if (req_body.size()) msg.meta.body = req_body;// i.e. static_cast<int>(CommandType::kStopServer)
   int ts = obj_->NewRequest(recv_id);
   msg.meta.timestamp = ts;
   msg.meta.request = true;
@@ -142,6 +145,8 @@ inline int SimpleApp::Request(int req_head, const std::string& req_body, int rec
 
   // send
   for (int r : Postoffice::Get()->GetNodeIDs(recv_id)) {
+    msg.meta.topic = Postoffice::IDtoRoletoTopic(r);
+    msg.meta.partition = Postoffice::IDtoRank(r);
     msg.meta.recver = r;
     Postoffice::Get()->van()->Send(msg);
   }
@@ -149,7 +154,7 @@ inline int SimpleApp::Request(int req_head, const std::string& req_body, int rec
 }
 
 inline void SimpleApp::Response(const SimpleData& req, const std::string& res_body) {
-  // setup message
+  // setup message // called in mxnet kvstore_dist_server.h
   Message msg;
   msg.meta.head = req.head;
   if (res_body.size()) msg.meta.body = res_body;
@@ -159,13 +164,15 @@ inline void SimpleApp::Response(const SimpleData& req, const std::string& res_bo
   msg.meta.app_id = obj_->app_id();
   msg.meta.customer_id = req.customer_id;
   msg.meta.recver = req.sender;
-
+  msg.meta.topic = Postoffice::IDtoRoletoTopic(req.sender);
+  msg.meta.partition = Postoffice::IDtoRank(req.sender);
   // send
   Postoffice::Get()->van()->Send(msg);
 }
 
 
 inline void SimpleApp::Process(const Message& msg) {
+  //KVWorker<Val>::Process and  KVServer Process will call this functio
   SimpleData recv;
   recv.sender    = msg.meta.sender;
   recv.head      = msg.meta.head;

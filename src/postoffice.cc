@@ -10,7 +10,8 @@
 
 namespace ps {
 Postoffice::Postoffice() {
-  van_ = Van::Create("zmq");
+  //van_ = Van::Create("zmq");
+  van_ = Van::Create("kafka");
   env_ref_ = Environment::_GetSharedRef();
   const char* val = NULL;
   val = CHECK_NOTNULL(Environment::Get()->find("DMLC_NUM_WORKER"));
@@ -32,7 +33,7 @@ void Postoffice::Start(int customer_id, const char* argv0, const bool do_barrier
     if (argv0) {
       dmlc::InitLogging(argv0);
     } else {
-      dmlc::InitLogging("ps-lite\0");
+      dmlc::InitLogging("ps-kafka\0");
     }
 
     // init node info.
@@ -180,6 +181,8 @@ void Postoffice::Manage(const Message& recv) {
   }
 }
 
+// for scheduler: check whether server or worker dead or not
+// for worker/server: check whether scheduler dead or not
 std::vector<int> Postoffice::GetDeadNodes(int t) {
   std::vector<int> dead_nodes;
   if (!van_->IsReady() || t == 0) return dead_nodes;

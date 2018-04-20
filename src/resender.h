@@ -1,5 +1,6 @@
 /**
  *  Copyright (c) 2015 by Contributors
+ *  DONE: modified by gbxu 2018
  */
 #ifndef PS_RESENDER_H_
 #define PS_RESENDER_H_
@@ -71,8 +72,10 @@ class Resender {
       mu_.unlock();
       // send back ack message (even if it is duplicated)
       Message ack;
-      ack.meta.recver = msg.meta.sender;
-      ack.meta.sender = msg.meta.recver;
+      ack.meta.recver     = msg.meta.sender;
+      ack.meta.sender     = msg.meta.recver;
+      ack.meta.topic      = Postoffice::IDtoRoletoTopic(msg.meta.sender);
+      ack.meta.partition  = Postoffice::IDtoRank(msg.meta.sender);
       ack.meta.control.cmd = Control::ACK;
       ack.meta.control.msg_sig = key;
       van_->Send(ack);

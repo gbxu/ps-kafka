@@ -1,5 +1,6 @@
 /*!
  *  Copyright (c) 2015 by Contributors
+ *  review by gbxu 2018
  * \file base.h
  * \brief defines configuration macros
  */

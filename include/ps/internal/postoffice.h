@@ -1,5 +1,6 @@
 /**
  *  Copyright (c) 2015 by Contributors
+ *  DONE: modified by gbxu 2018
  */
 #ifndef PS_INTERNAL_POSTOFFICE_H_
 #define PS_INTERNAL_POSTOFFICE_H_
@@ -115,6 +116,15 @@ class Postoffice {
 #undef max
 #endif
     return std::max((id - 8) / 2, 0);
+  }
+  static inline Meta::Topic IDtoRoletoTopic(int id) {
+    if(id == 1) {
+      return Meta::TOSCHEDULER;
+    } else if(id % 2 == 1) {
+      return Meta::TOWORKERS;
+    } else {
+      return Meta::TOSERVERS;
+    }
   }
   /** \brief Returns the number of worker nodes */
   int num_workers() const { return num_workers_; }
