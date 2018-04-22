@@ -484,6 +484,7 @@ void KVWorker<Val>::Send(int timestamp, bool push, int cmd, const KVPairs<Val>& 
   }
 
   for (size_t i = 0; i < sliced.size(); ++i) {
+    // each server
     const auto& s = sliced[i];
     if (!s.first) continue;
     Message msg;

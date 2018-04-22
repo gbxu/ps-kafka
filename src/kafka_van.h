@@ -60,7 +60,13 @@ public:
 
 protected:
     void Start(int customer_id) override {
-        ;
+        if(my_node_.role == Node::WORKER){
+            partitions_cnt = Postoffice::num_workers();//consumer partitions
+        } else if(my_node_.role = Node::SERVER){
+            partitions_cnt = Postoffice::num_servers();
+        } else{
+            partitions_cnt = 1;
+        }
     }
 
     void Stop() override {
@@ -87,7 +93,9 @@ protected:
             rd_kafka_t *rk = rd->rk;
             rd_kafka_topic_t *rkt = rd->rkt;
             /* Stop consuming */
-            //rd_kafka_consume_stop(rkt, itr.first.partition);//todo??
+            for (int i = 0; i < partitions_cnt; ++i) {
+                rd_kafka_consume_stop(rkt, i);
+            }
             //while (rd_kafka_outq_len(rk) > 0) rd_kafka_poll(rk, 10);
             /* Destroy topic */
             rd_kafka_topic_destroy(rkt);
@@ -190,12 +198,13 @@ protected:
 
         std::lock_guard<std::mutex> lk(mu_);
         //topic partition
+        msg.meta.sender = my_node_.id;
         msg.meta.topic = Postoffice::IDtoRoletoTopic(msg.meta.recver);
         msg.meta.partition = Postoffice::IDtoRank(msg.meta.recver);
         // find the producer
         CHECK_NE(msg.meta.topic, Meta::kEmpty);
-        CHECK_NE(msg.meta.recver,Meta::sEmpty);
-        TP tp = {msg.meta.topic, msg.meta.recver};
+        CHECK_NE(msg.meta.partition,Meta::sEmpty);
+        TP tp = {msg.meta.topic};
         auto it = producers_.find(tp);
         if (it == producers_.end()) {
             LOG(WARNING) << "there is no producer to broker "
@@ -211,12 +220,16 @@ protected:
         int meta_size; char* meta_buf;
         PackMeta(msg.meta, &meta_buf, &meta_size);
         int n = msg.data.size();
+        int msg_more = 0;
+        if(n != 0){
+            msg_more = 1;
+        }
         retry:
         if(rd_kafka_produce(rkt,
                             msg.meta.partition,
                             RD_KAFKA_MSG_F_COPY,
                             meta_buf, meta_size,
-                            NULL, 0,
+                            msg_more, 1,
                             NULL) == -1){
             fprintf(stderr,
                     "%% Failed to produce to topic %s: %s\n",
@@ -250,13 +263,13 @@ protected:
         for (int i = 0; i < n; ++i) {
             SArray<char>* data = new SArray<char>(msg.data[i]);
             int data_size = data->size();
-            //if (i == n - 1) tag = 0;
+            if (i == n - 1) msg_more = 0;
             retry:
             if(rd_kafka_produce(rkt,
                                 msg.meta.recver,
                                 RD_KAFKA_MSG_F_COPY,
                                 data, data_size,
-                                NULL, 0,
+                                msg_more, 1,
                                 NULL) == -1){
                 fprintf(stderr,
                         "%% Failed to produce to topic %s: %s\n",
@@ -298,7 +311,7 @@ protected:
         /* Start consuming */
         if (rd_kafka_consume_start(rkt,
                                    Postoffice::IDtoRank(my_node_.id),
-                                   start_offset) == -1){
+                                   RD_KAFKA_OFFSET_END) == -1){
             rd_kafka_resp_err_t err = rd_kafka_last_error();
             fprintf(stderr, "%% Failed to start consuming: %s\n",
                     rd_kafka_err2str(err));
@@ -320,54 +333,33 @@ protected:
             /* Consume single message.
              * See rdkafka_performance.c for high speed
              * consuming of messages. */
-            rkmessage = rd_kafka_consume(rkt, partition, 1000);// time out 1000ms
+            rkmessage = rd_kafka_consume(rkt, Postoffice::IDtoRank(my_node_.id), 1000);// time out 1000ms
+            CHECK_NE(rkmessage->err,0);
             char* buf = CHECK_NOTNULL((char *)rkmessage->payload);
             size_t size = rkmessage->len;
             recv_bytes += size;
 
-            if (i == 0) {//meta
+            if (i == 0) {//data
                 // identify
-                msg->meta.sender = GetNodeID(buf, size);
                 msg->meta.recver = my_node_.id;
-                rd_kafka_message_destroy(rkmessage);
-            } else if (i == 1) {//i-th zmsg
                 // task
-                UnpackMeta(buf, size, &(msg->meta));//meta
+                UnpackMeta(buf, size, &(msg->meta));//
                 rd_kafka_message_destroy(rkmessage);
-                break;
+                if (!(int)rkmessage.key) break;
             } else {
                 // zero-copy
                 SArray<char> data;
-                data.reset(buf, size, [zmsg, size](char* buf) {
+                data.reset(buf, size, [rkmessage, size](char* buf) {
                     rd_kafka_message_destroy(rkmessage);
                 });
                 msg->data.push_back(data);
-                break;
+                if (!(int)rkmessage.key) break;
             }
         }
         return recv_bytes;
     }
 
 private:
-    /**
-     * return the node id given the received identity
-     * \return -1 if not find
-     */
-    int GetNodeID(const char* buf, size_t size) {
-        if (size > 2 && buf[0] == 'p' && buf[1] == 's') {
-            int id = 0;
-            size_t i = 2;
-            for (; i < size; ++i) {
-                if (buf[i] >= '0' && buf[i] <= '9') {
-                    id = id * 10 + buf[i] - '0';
-                } else {
-                    break;
-                }
-            }
-            if (i == size) return id;// example: ps12 =》 12
-        }
-        return Meta::kEmpty;
-    }
 
     void *context_ = nullptr;
     /**
@@ -376,6 +368,7 @@ private:
     std::unordered_map<TP, void *> producers_;
     std::unordered_map<TP, void *> consumers_;
     std::mutex mu_;
+    int partitions_cnt;
 };
 }  // namespace ps
 #endif //PSLITE_KAFKA_VAN_H

@@ -475,7 +475,7 @@ void Van::PackMeta(const Meta& meta, char** meta_buf, int* buf_size) {
       auto p = ctrl->add_node();
       p->set_id(n.id);
       p->set_role(n.role);
-      p->set_port(n.port);
+      //p->set_port(n.port);
       p->set_hostname(n.hostname);
       p->set_is_recovery(n.is_recovery);
       p->set_customer_id(n.customer_id);
@@ -517,7 +517,7 @@ void Van::UnpackMeta(const char* meta_buf, int buf_size, Meta* meta) {
       const auto& p = ctrl.node(i);
       Node n;
       n.role = static_cast<Node::Role>(p.role());
-      n.port = p.port();
+      //n.port = p.port();
       n.hostname = p.hostname();
       n.id = p.has_id() ? p.id() : Node::kEmpty;
       n.is_recovery = p.is_recovery();
@@ -535,6 +535,7 @@ void Van::Heartbeat() {
   while (interval > 0 && ready_.load()) {
     std::this_thread::sleep_for(std::chrono::seconds(interval));
     Message msg;
+    msg.meta.sender = my_node_.id;
     msg.meta.recver = kScheduler;
     msg.meta.control.cmd = Control::HEARTBEAT;
     msg.meta.control.node.push_back(my_node_);
