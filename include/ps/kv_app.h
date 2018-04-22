@@ -398,8 +398,8 @@ void KVServer<Val>::Response(const KVMeta& req, const KVPairs<Val>& res) {
   msg.meta.head        = req.cmd;
   msg.meta.timestamp   = req.timestamp;
   msg.meta.recver      = req.sender;
-  msg.meta.topic       = Postoffice::IDtoRoletoTopic(req.sender);
-  msg.meta.partition   = Postoffice::IDtoRank(req.sender);
+  msg.meta.topic       = Postoffice::Get()->IDtoRoletoTopic(req.sender);
+  msg.meta.partition   = Postoffice::Get()->IDtoRank(req.sender);
   if (res.keys.size()) {
     msg.AddData(res.keys);
     msg.AddData(res.vals);

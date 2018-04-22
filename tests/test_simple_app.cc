@@ -1,6 +1,6 @@
 #include "ps/ps.h"
 using namespace ps;
-
+/*
 int num = 0;
 
 void ReqHandle(const SimpleData& req, SimpleApp* app) {
@@ -9,8 +9,9 @@ void ReqHandle(const SimpleData& req, SimpleApp* app) {
   app->Response(req);
   ++ num;
 }
-
+*/
 int main(int argc, char *argv[]) {
+/*
   int n = 100;
   SimpleApp app(0, 0);
   app.set_request_handle(ReqHandle);
@@ -31,5 +32,6 @@ int main(int argc, char *argv[]) {
   Finalize(0, true);
 
   CHECK_EQ(num, n);
+*/
   return 0;
 }

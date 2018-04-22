@@ -54,7 +54,7 @@ class Van {
      * \brief send a message, It is thread-safe
      * \return the number of bytes sent. -1 if failed
      */
-    int Send(const Message &msg);
+    int Send(Message &msg);
 
     /**
      * \brief return my node
@@ -85,8 +85,8 @@ class Van {
      * \brief connect to a node
      */
     //virtual void Connect(const Node &node) = 0;
-    virtual void Connect(const Node &node){};
-    virtual void Connect(const char *brokers, TP tp){};
+    //virtual void Connect(const Node &node){};
+    virtual void Connect(const char *brokers, Meta::Topic tp);
     /**
      * \brief bind to my node
      * do multiple retries on binding the port. since it's possible that
@@ -94,8 +94,8 @@ class Van {
      * \return return the port binded, -1 if failed.
      */
     //virtual int Bind(const Node &node, int max_retry);
-    virtual int Bind(const Node &node, int max_retry){};
-    virtual int Bind(const char *brokers, TP tp){};
+    //virtual int Bind(const Node &node, int max_retry){};
+    virtual void Bind(const char *brokers, Meta::Topic  tp);
 
     /**
      * \brief block until received a message
@@ -107,7 +107,7 @@ class Van {
      * \brief send a mesage
      * \return the number of bytes sent
      */
-    virtual int SendMsg(const Message &msg) = 0;
+    virtual int SendMsg(Message &msg) = 0;
 
     /**
      * \brief pack meta into a string

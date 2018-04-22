@@ -10,6 +10,7 @@
 #include <sstream>
 #include "ps/sarray.h"
 namespace ps {
+
 /** \brief data type */
 enum DataType {
   CHAR, INT8, INT16, INT32, INT64,
@@ -138,11 +139,12 @@ struct Control {
 struct Meta {
   /** \brief the empty value */
   static const int kEmpty;
+  //static const std::string sEmpty;//gbxu
   /** \brief default constructor */
   Meta() : head(kEmpty), app_id(kEmpty), customer_id(kEmpty),
            timestamp(kEmpty), sender(kEmpty), recver(kEmpty),
            request(false), push(false), simple_app(false),
-           topic(sEmpty),partition(kEmpty) {}
+           topic(Meta::NONE),partition(kEmpty) {}
   std::string DebugString() const {
     std::stringstream ss;
     if (sender == Node::kEmpty) {
@@ -189,7 +191,7 @@ struct Meta {
   /** \brief whether or not it's for SimpleApp */
   bool simple_app;
   /** \brief the topic what the message will be sent to */
-  enum Topic { TOWORKERS, TOSERVERS, TOSCHEDULER};
+  enum Topic { TOWORKERS, TOSERVERS, TOSCHEDULER, NONE};
   Topic topic;
   int partition;
   /** \brief an string body */
@@ -226,5 +228,10 @@ struct Message {
     return ss.str();
   }
 };
+//gbxu
+//struct TP {
+  //  Meta::Topic topic;
+    //int partition;
+//};
 }  // namespace ps
 #endif  // PS_INTERNAL_MESSAGE_H_

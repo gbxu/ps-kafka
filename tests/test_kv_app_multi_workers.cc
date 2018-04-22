@@ -1,6 +1,6 @@
 #include "ps/ps.h"
 using namespace ps;
-
+/*
 void StartServer() {
   if (!IsServer()) return;
   auto server = new KVServer<float>(0);
@@ -48,8 +48,9 @@ void RunWorker(int customer_id) {
   // stop system
   Finalize(customer_id, true);
 }
-
+*/
 int main(int argc, char *argv[]) {
+/*
   // setup server nodes
   StartServer();
   // start system
@@ -63,5 +64,6 @@ int main(int argc, char *argv[]) {
 
   t0.join();
   t1.join();
+*/
   return 0;
 }

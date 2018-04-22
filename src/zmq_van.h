@@ -16,6 +16,8 @@ namespace ps {
 /**
  * \brief be smart on freeing recved data
  */
+/*
+
 inline void FreeData(void *data, void *hint) {
   if (hint == NULL) {
     delete [] static_cast<char*>(data);
@@ -24,9 +26,6 @@ inline void FreeData(void *data, void *hint) {
   }
 }
 
-/**
- * \brief ZMQ based implementation
- */
 class ZMQVan : public Van {
  public:
   ZMQVan() { }
@@ -220,10 +219,10 @@ class ZMQVan : public Van {
   }
 
  private:
-  /**
-   * return the node id given the received identity
-   * \return -1 if not find
-   */
+
+   // return the node id given the received identity
+   // \return -1 if not find
+
   int GetNodeID(const char* buf, size_t size) {
     if (size > 2 && buf[0] == 'p' && buf[1] == 's') {
       int id = 0;
@@ -241,13 +240,13 @@ class ZMQVan : public Van {
   }
 
   void *context_ = nullptr;
-  /**
-   * \brief node_id to the socket for sending data to this node
-   */
+   // \brief node_id to the socket for sending data to this node
+
   std::unordered_map<int, void*> senders_;
   std::mutex mu_;
   void *receiver_ = nullptr;
 };
+*/
 }  // namespace ps
 
 #endif  // PS_ZMQ_VAN_H_

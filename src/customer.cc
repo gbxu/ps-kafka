@@ -8,6 +8,7 @@ namespace ps {
 
 const int Node::kEmpty = std::numeric_limits<int>::max();
 const int Meta::kEmpty = std::numeric_limits<int>::max();
+//const std::string Meta::sEmpty = "";
 
 Customer::Customer(int app_id, int customer_id, const Customer::RecvHandle& recv_handle)
     : app_id_(app_id), customer_id_(customer_id), recv_handle_(recv_handle) {

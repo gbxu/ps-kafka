@@ -22,9 +22,7 @@ namespace ps {
 static const int kDefaultHeartbeatInterval = 0;
 
 Van* Van::Create(const std::string& type) {
-  if (type == "zmq") {
-    return new ZMQVan();
-  } else if (type == "kafka") {
+  if (type == "kafka") {
     return new KAFKAVan();
   } else {
       LOG(FATAL) << "unsupported van type: " << type;
@@ -304,28 +302,18 @@ void Van::Start(int customer_id) {
     // ---[gbxy
     const char *brokers = Environment::Get()->find("BROKERS");
     // todo:remove one of producers?
-    TP tp;
     if(is_scheduler_) {
-      tp = {Meta::TOSERVERS};
-      Connect(brokers,tp);//producer
-      tp = {Meta::TOWORKERS};
-      Connect(brokers,tp);//producer
-      tp = {Meta::TOSCHEDULER};
-      Bind(brokers,tp);//consumer
+      Connect(brokers,Meta::TOSERVERS);//producer
+      Connect(brokers,Meta::TOWORKERS);//producer
+      Bind(brokers,Meta::TOSCHEDULER);//consumer
     }else if(Postoffice::Get()->is_worker()) {
-      tp = {Meta::TOSCHEDULER};
-      Connect(brokers,tp);//producer
-      tp = {Meta::TOSERVERS};
-      Connect(brokers,tp);//producer
-      tp = {Meta::TOWORKERS};
-      Bind(brokers,tp);//consumer
+      Connect(brokers,Meta::TOSCHEDULER);//producer
+      Connect(brokers,Meta::TOSERVERS);//producer
+      Bind(brokers,Meta::TOWORKERS);//consumer
     } else {
-      tp = {Meta::TOSCHEDULER};
-      Connect(brokers,tp);//producer
-      tp = {Meta::TOWORKERS};
-      Connect(brokers,tp);//producer
-      tp = {Meta::TOSERVERS};
-      Bind(brokers,tp);//consumer
+      Connect(brokers,Meta::TOSCHEDULER);//producer
+      Connect(brokers,Meta::TOWORKERS);//producer
+      Bind(brokers,Meta::TOSERVERS);//consumer
     }
     // ---]
 
@@ -394,7 +382,7 @@ void Van::Stop() {
   if (resender_) delete resender_;
 }
 
-int Van::Send(const Message& msg) {
+int Van::Send(Message& msg) {
   int send_bytes = SendMsg(msg);
   CHECK_NE(send_bytes, -1);
   send_bytes_ += send_bytes;

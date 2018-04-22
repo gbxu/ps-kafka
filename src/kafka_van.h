@@ -17,14 +17,6 @@
 #endif
 
 namespace ps {
-struct TP {
-    Meta::Topic topic;
-    //int partition;
-};
-struct RD {
-    rd_kafka_t *rk;//producer/consumer object
-    rd_kafka_topic_t *rkt;//topic object
-};
 /**
  * @brief Message delivery report callback.
  *
@@ -36,17 +28,15 @@ struct RD {
  * The callback is triggered from rd_kafka_poll() and executes on
  * the application's thread.
  */
+
+struct RD {
+    rd_kafka_t *rk;//producer/consumer object
+    rd_kafka_topic_t *rkt;//topic object
+};
 static void dr_msg_cb (rd_kafka_t *rk,
                        const rd_kafka_message_t *rkmessage, void *opaque) {
     if (rkmessage->err)
-        fprintf(stderr, "%% Message delivery failed: %s\n",
-                rd_kafka_err2str(rkmessage->err));
-    else
-        fprintf(stderr,
-                "%% Message delivered (%zd bytes, "
-                "partition %"PRId32")\n",
-                rkmessage->len, rkmessage->partition);
-
+        CHECK(0);
     /* The rkmessage is destroyed automatically by librdkafka */
 }
 
@@ -61,9 +51,9 @@ public:
 protected:
     void Start(int customer_id) override {
         if(my_node_.role == Node::WORKER){
-            partitions_cnt = Postoffice::num_workers();//consumer partitions
+            partitions_cnt = Postoffice::Get()->num_workers();//consumer partitions
         } else if(my_node_.role = Node::SERVER){
-            partitions_cnt = Postoffice::num_servers();
+            partitions_cnt = Postoffice::Get()->num_servers();
         } else{
             partitions_cnt = 1;
         }
@@ -72,15 +62,14 @@ protected:
     void Stop() override {
         PS_VLOG(1) << my_node_.ShortDebugString() << " is stopping";
         Van::Stop();
-        for (std::unordered_map<TP, void *>::iterator
-                     itr = producers_.begin();itr != producers_.end();itr++) {
-            void *rd = itr->second;
-            rd_kafka_t *rk = rd->rk;
-            rd_kafka_topic_t *rkt = rd->rkt;
+        for (auto& itr : producers_) {
+            RD rd = itr.second;
+            rd_kafka_t *rk = rd.rk;
+            rd_kafka_topic_t *rkt = rd.rkt;
             /* Poll to handle delivery reports */
             rd_kafka_poll(rk, 0);
             /* Wait for messages to be delivered */
-            while (run && rd_kafka_outq_len(rk) > 0)
+            while (rd_kafka_outq_len(rk) > 0)
                 rd_kafka_poll(rk, 100);
             /* Destroy topic object */
             rd_kafka_topic_destroy(rkt);
@@ -89,9 +78,9 @@ protected:
         }
 
         for (auto& itr : consumers_) {
-            void *rd = itr->second;
-            rd_kafka_t *rk = rd->rk;
-            rd_kafka_topic_t *rkt = rd->rkt;
+            RD rd = itr.second;
+            rd_kafka_t *rk = rd.rk;
+            rd_kafka_topic_t *rkt = rd.rkt;
             /* Stop consuming */
             for (int i = 0; i < partitions_cnt; ++i) {
                 rd_kafka_consume_stop(rkt, i);
@@ -105,15 +94,15 @@ protected:
         }
     }
 
-    void Bind(char *brokers, TP tp) override {
+    void Bind(const char *brokers, Meta::Topic tp) override {
         //consumer
-        CHECK_NE(tp.topic, Meta::sEmpty);//empty
+        CHECK_NE(tp, Meta::NONE);//empty
 
-        auto it = consumers_.find(tp);// null
+        auto it = consumers_.find((char *)tp);// null
         if (it != consumers_.end()) {// exists, close the consumer
-            void *rd = it->second;
-            rd_kafka_t *rk = rd->rk;
-            rd_kafka_topic_t *rkt = rd->rkt;
+            RD rd = it->second;
+            rd_kafka_t *rk = rd.rk;
+            rd_kafka_topic_t *rkt = rd.rkt;
             /* Destroy topic object */
             rd_kafka_topic_destroy(rkt);
             /* Destroy the consumer instance */
@@ -128,7 +117,7 @@ protected:
         if (!rk) {
             fprintf(stderr,
                     "%% Failed to create new consumer: %s\n", errstr);
-            return 1;
+            return;
         }
         /* Add brokers */
         if (rd_kafka_brokers_add(rk, brokers) == 0) {
@@ -136,30 +125,30 @@ protected:
             exit(1);
         }
         //topic
-        rd_kafka_topic_t *rkt = rd_kafka_topic_new(rk, tp.topic, NULL);
+        rd_kafka_topic_t *rkt = rd_kafka_topic_new(rk, (const char *)tp, NULL);
         if (!rkt) {
             fprintf(stderr, "%% Failed to create topic object: %s\n",
                     rd_kafka_err2str(rd_kafka_last_error()));
             rd_kafka_destroy(rk);
-            return 1;
+            return;
         }
-        RD* rd = {rk, rkt};
-        consumers_[tp] = rd;
+        RD rd = {rk, rkt};
+        consumers_[(char *)tp] = rd;
 
     }
 
-    void Connect(char *brokers, TP tp) override {
+    void Connect(const char *brokers, Meta::Topic tp) override {
         //producer
         // by gbxu:
         //brokers ip:port,ip:port,ip:port
         //brokers ip,ip:port,ip:port //default port is 9092
-        CHECK_NE(tp.topic, Meta::sEmpty);//empty
+        CHECK_NE(tp, Meta::NONE);//empty
 
-        auto it = producers_.find(tp);// null
+        auto it = producers_.find((char *)tp);// null
         if (it != producers_.end()) {// exists, close the producer
-            void *rd = it->second;
-            rd_kafka_t *rk = rd->rk;
-            rd_kafka_topic_t *rkt = rd->rkt;
+            RD rd = it->second;
+            rd_kafka_t *rk = rd.rk;
+            rd_kafka_topic_t *rkt = rd.rkt;
             /* Destroy topic object */
             rd_kafka_topic_destroy(rkt);
             /* Destroy the producer instance */
@@ -174,7 +163,7 @@ protected:
         if (!rk) {
             fprintf(stderr,
                     "%% Failed to create new producer: %s\n", errstr);
-            return 1;
+            return;
         }
         /* Add brokers */
         if (rd_kafka_brokers_add(rk, brokers) == 0) {
@@ -182,40 +171,36 @@ protected:
             exit(1);
         }
         //topic
-        rd_kafka_topic_t *rkt = rd_kafka_topic_new(rk, tp.topic, NULL);
+        rd_kafka_topic_t *rkt = rd_kafka_topic_new(rk, (const char *)tp, NULL);
         if (!rkt) {
             fprintf(stderr, "%% Failed to create topic object: %s\n",
                     rd_kafka_err2str(rd_kafka_last_error()));
             rd_kafka_destroy(rk);
-            return 1;
+            return;
         }
-        RD* rd = {rk, rkt};
-        producers_[tp] = rd;
+        RD rd = {rk, rkt};
+        producers_[(char *)tp] = rd;
     }
 
 
-    int SendMsg(const Message& msg) override {
+    int SendMsg(Message& msg) override {
 
         std::lock_guard<std::mutex> lk(mu_);
         //topic partition
         msg.meta.sender = my_node_.id;
-        msg.meta.topic = Postoffice::IDtoRoletoTopic(msg.meta.recver);
+        msg.meta.topic = Postoffice::Get()->IDtoRoletoTopic(msg.meta.recver);
         msg.meta.partition = Postoffice::IDtoRank(msg.meta.recver);
         // find the producer
-        CHECK_NE(msg.meta.topic, Meta::kEmpty);
-        CHECK_NE(msg.meta.partition,Meta::sEmpty);
-        TP tp = {msg.meta.topic};
-        auto it = producers_.find(tp);
+        CHECK_NE(msg.meta.topic, Meta::NONE);
+        CHECK_NE(msg.meta.partition,Meta::kEmpty);
+        Meta::Topic tp = {msg.meta.topic};
+        auto it = producers_.find((char *)tp);
         if (it == producers_.end()) {
-            LOG(WARNING) << "there is no producer to broker "
-                         << msg.meta.topic << msg.meta.recver << "\n";
-            std::cout << "there is not producer to broker "
-                      << msg.meta.topic << msg.meta.recver << "\n";
             return -1;
         }
-        void *rd = it->second;
-        rd_kafka_t *rk = rd->rk;
-        rd_kafka_topic_t *rkt = rd->rkt;
+        RD rd = it->second;
+        rd_kafka_t *rk = rd.rk;
+        rd_kafka_topic_t *rkt = rd.rkt;
         // send meta
         int meta_size; char* meta_buf;
         PackMeta(msg.meta, &meta_buf, &meta_size);
@@ -224,17 +209,13 @@ protected:
         if(n != 0){
             msg_more = 1;
         }
-        retry:
+        retry0:
         if(rd_kafka_produce(rkt,
                             msg.meta.partition,
                             RD_KAFKA_MSG_F_COPY,
                             meta_buf, meta_size,
-                            msg_more, 1,
+                            (const void*)msg_more, 1,
                             NULL) == -1){
-            fprintf(stderr,
-                    "%% Failed to produce to topic %s: %s\n",
-                    rd_kafka_topic_name(rkt),
-                    rd_kafka_err2str(rd_kafka_last_error()));
 
             /* Poll to handle delivery reports */
             if (rd_kafka_last_error() ==
@@ -250,12 +231,8 @@ protected:
                  * configuration property
                  * queue.buffering.max.messages */
                 rd_kafka_poll(rk, 1000/*block for max 1000ms*/);
-                goto retry;
+                goto retry0;
             }
-        } else{
-            fprintf(stderr, "%% Enqueued message (%zd bytes) "
-                            "for topic %s\n",
-                    len, rd_kafka_topic_name(rkt));
         }
         rd_kafka_poll(rk, 0/*non-blocking*/);
         int send_bytes = meta_size;
@@ -264,27 +241,19 @@ protected:
             SArray<char>* data = new SArray<char>(msg.data[i]);
             int data_size = data->size();
             if (i == n - 1) msg_more = 0;
-            retry:
+            retry1:
             if(rd_kafka_produce(rkt,
                                 msg.meta.recver,
                                 RD_KAFKA_MSG_F_COPY,
                                 data, data_size,
-                                msg_more, 1,
+                                (const void*)msg_more, 1,
                                 NULL) == -1){
-                fprintf(stderr,
-                        "%% Failed to produce to topic %s: %s\n",
-                        rd_kafka_topic_name(rkt),
-                        rd_kafka_err2str(rd_kafka_last_error()));
                 if (rd_kafka_last_error() ==
                     RD_KAFKA_RESP_ERR__QUEUE_FULL) {
                     //queue full
                     rd_kafka_poll(rk, 1000/*block for max 1000ms*/);
-                    goto retry;
+                    goto retry1;
                 }
-            } else{
-                fprintf(stderr, "%% Enqueued message (%zd bytes) "
-                                "for topic %s\n",
-                        len, rd_kafka_topic_name(rkt));
             }
             rd_kafka_poll(rk, 0/*non-blocking*/);
             send_bytes += data_size;
@@ -296,31 +265,19 @@ protected:
         msg->data.clear();
         size_t recv_bytes = 0;
         // find the consumer
-        auto it = consumers_.find(Postoffice::IDtoRoletoTopic(my_node_.id));
+        auto it = consumers_.find((char *)Postoffice::IDtoRoletoTopic(my_node_.id));
         if (it == consumers_.end()) {
-            LOG(WARNING) << "there is no consumer to broker "
-                         << msg.meta.topic << msg.meta.recver << "\n";
-            std::cout << "there is not consumer to broker "
-                      << msg.meta.topic << msg.meta.recver << "\n";
-            return -1;
+            CHECK(0);
         }
-        void *rd = it->second;
-        rd_kafka_t *rk = rd->rk;
-        rd_kafka_topic_t *rkt = rd->rkt;
+        RD rd = it->second;
+        rd_kafka_t *rk = rd.rk;
+        rd_kafka_topic_t *rkt = rd.rkt;
 
         /* Start consuming */
         if (rd_kafka_consume_start(rkt,
                                    Postoffice::IDtoRank(my_node_.id),
                                    RD_KAFKA_OFFSET_END) == -1){
-            rd_kafka_resp_err_t err = rd_kafka_last_error();
-            fprintf(stderr, "%% Failed to start consuming: %s\n",
-                    rd_kafka_err2str(err));
-            if (err == RD_KAFKA_RESP_ERR__INVALID_ARG)
-                fprintf(stderr,
-                        "%% Broker based offset storage "
-                        "requires a group.id, "
-                        "add: -X group.id=yourGroup\n");
-            exit(1);
+            CHECK(0);
         }
 
         for (int i = 0; ; ++i) {
@@ -345,7 +302,7 @@ protected:
                 // task
                 UnpackMeta(buf, size, &(msg->meta));//
                 rd_kafka_message_destroy(rkmessage);
-                if (!(int)rkmessage.key) break;
+                if (!rkmessage->key) break;
             } else {
                 // zero-copy
                 SArray<char> data;
@@ -353,20 +310,18 @@ protected:
                     rd_kafka_message_destroy(rkmessage);
                 });
                 msg->data.push_back(data);
-                if (!(int)rkmessage.key) break;
+                if (!rkmessage->key) break;
             }
         }
         return recv_bytes;
     }
 
 private:
-
-    void *context_ = nullptr;
     /**
      * \brief node_id to the socket for sending data to this node
      */
-    std::unordered_map<TP, void *> producers_;
-    std::unordered_map<TP, void *> consumers_;
+    std::unordered_map<char*, RD> producers_;
+    std::unordered_map<char*, RD> consumers_;
     std::mutex mu_;
     int partitions_cnt;
 };

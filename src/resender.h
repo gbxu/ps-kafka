@@ -129,7 +129,7 @@ class Resender {
       }
       mu_.unlock();
 
-      for (const auto& msg : resend) van_->Send(msg);
+      for (auto& msg : resend) van_->Send(msg);
     }
   }
   std::thread* monitor_;
