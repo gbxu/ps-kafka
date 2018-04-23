@@ -194,7 +194,7 @@ protected:
         std::lock_guard<std::mutex> lk(mu_);
         //topic partition
         msg.meta.sender = my_node_.id;
-        Topic topic = Postoffice::Get()->IDtoTopic(msg.meta.recver);
+        Topic topic = Postoffice::IDtoTopic(msg.meta.recver);
         int partition = Postoffice::IDtoPartition(msg.meta.recver);
         // find the producer
         //CHECK_NE(topic, NONE);
@@ -274,9 +274,9 @@ protected:
         int partition;
         if (my_node_.id == Node::kEmpty){
             partition = 0;//only once for the startup
-            if(Postoffice::is_worker()){
+            if(Postoffice::Get()->is_worker()){
                 it = consumers_.find("TOWORKERS");
-            } else if (Postoffice::is_server()){
+            } else if (Postoffice::Get()->is_server()){
                 it = consumers_.find("TOSERVERS");
             } else{
               CHECK(0);
