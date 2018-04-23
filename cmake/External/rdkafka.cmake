@@ -52,7 +52,7 @@ if (NOT __RDKAFKA_INCLUDED) # guard against multiple includes
             FILE(GLOB_RECURSE RDKAFKA_LIBRARIES "${ZMQ_INSTALL}/lib/librdkafka-${CMAKE_VS_PLATFORM_TOOLSET}*.lib")
             #set(KAFKA_LIBRARIES ${RDKAFKA_INSTALL}/lib/RDKAFKA.lib ${CMAKE_THREAD_LIBS_INIT})
         else()
-            FILE(GLOB_RECURSE RDKAFKA_LIBRARIES "${RDKAFKA_INSTALL}/lib/librdkafka-*.a")
+            FILE(GLOB_RECURSE RDKAFKA_LIBRARIES "${RDKAFKA_INSTALL}/lib/librdkafka*.a")
             #set(KAFKA_LIBRARIES ${ZMQ_INSTALL}/lib/libZMQ.a ${CMAKE_THREAD_LIBS_INIT})
         endif()
     set(RDKAFKA_LIBRARY_DIRS ${RDKAFKA_INSTALL}/lib)
