@@ -97,11 +97,11 @@ protected:
         }
     }
 
-    void Bind(const char *brokers, Topic tp) override {
+    void Bind(const char *brokers, Topic topic) override {
         //consumer
-        CHECK_NE(tp, NONE);//empty
+        CHECK_NE(topic, NONE);//empty
 
-        auto it = consumers_.find((char *)tp);// null
+        auto it = consumers_.find((char *)topic);// null
         if (it != consumers_.end()) {// exists, close the consumer
             RD rd = it->second;
             rd_kafka_t *rk = rd.rk;
@@ -131,7 +131,7 @@ protected:
             exit(1);
         }
         //topic
-        rd_kafka_topic_t *rkt = rd_kafka_topic_new(rk, TopicToConst(tp), NULL);
+        rd_kafka_topic_t *rkt = rd_kafka_topic_new(rk, TopicToConst(topic), NULL);
         if (!rkt) {
             fprintf(stderr, "%% Failed to create topic object: %s\n",
                     rd_kafka_err2str(rd_kafka_last_error()));
@@ -139,17 +139,17 @@ protected:
             return;
         }
         RD rd = {rk, rkt};
-        consumers_[(char *)tp] = rd;
+        consumers_[(char *)topic] = rd;
 
     }
 
-    void Connect(const char *brokers, Topic tp) override {
+    void Connect(const char *brokers, Topic topic) override {
         //producer
         // by gbxu:
         //brokers ip:port,ip:port,ip:port
         //brokers ip,ip:port,ip:port //default port is 9092
-        CHECK_NE(tp, NONE);//empty
-        auto it = producers_.find((char *)tp);// null
+        CHECK_NE(topic, NONE);//empty
+        auto it = producers_.find((char *)topic);// null
         if (it != producers_.end()) {// exists, close the producer
             RD rd = it->second;
             rd_kafka_t *rk = rd.rk;
@@ -177,7 +177,7 @@ protected:
             exit(1);
         }
         //topic
-        rd_kafka_topic_t *rkt = rd_kafka_topic_new(rk, TopicToConst(tp), NULL);
+        rd_kafka_topic_t *rkt = rd_kafka_topic_new(rk, TopicToConst(topic), NULL);
         if (!rkt) {
             fprintf(stderr, "%% Failed to create topic object: %s\n",
                     rd_kafka_err2str(rd_kafka_last_error()));
@@ -185,7 +185,7 @@ protected:
             return;
         }
         RD rd = {rk, rkt};
-        producers_[(char *)tp] = rd;
+        producers_[(char *)topic] = rd;
     }
 
 
@@ -199,7 +199,7 @@ protected:
         // find the producer
         //CHECK_NE(topic, NONE);
         //CHECK_NE(partition, kEmpty);
-        auto it = producers_.find((char *)tp);
+        auto it = producers_.find((char *)topic);
         if (it == producers_.end()) {
             return -1;
         }
@@ -270,7 +270,7 @@ protected:
         msg->data.clear();
         size_t recv_bytes = 0;
         // find the consumer
-        auto it;
+        std::unordered_map<char*, RD>::iterator it;
         int partition;
         if (my_node_.id == Node::kEmpty){
             partition = 0;//only once for the startup
