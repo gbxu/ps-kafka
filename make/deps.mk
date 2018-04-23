@@ -16,7 +16,7 @@ ${PROTOBUF}:
 	rm -rf $(FILE) $(DIR)
 
 # rdkafka
-RDKAFKA = ${DEPS_PATH}/include/librdkafka/rdkafka.h
+RDKAFKA = ${DEPS_PATH}/include/rdkafka.h
 
 ${RDKAFKA}:
 	$(eval FILE=rdkafka.tar.gz)
