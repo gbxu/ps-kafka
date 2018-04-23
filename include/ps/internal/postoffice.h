@@ -11,6 +11,7 @@
 #include "ps/internal/env.h"
 #include "ps/internal/customer.h"
 #include "ps/internal/van.h"
+#include "ps/internal/message.h"
 namespace ps {
 /**
  * \brief the center of the system
@@ -117,13 +118,40 @@ class Postoffice {
 #endif
     return std::max((id - 8) / 2, 0);
   }
-  static inline Meta::Topic IDtoRoletoTopic(int id) {
-    if(id == 1) {
-      return Meta::TOSCHEDULER;
-    } else if(id % 2 == 1) {
-      return Meta::TOWORKERS;
+  static inline int IDtoPartition(int id) {
+#ifdef _MSC_VER
+#undef max
+#endif
+    if(id == 2){
+      return 0;
+    } else if(id == 4){
+      return 0;
+    } else if(id == 1){
+      return 0;
     } else {
-      return Meta::TOSERVERS;
+      return std::max((id - 8) / 2, 0)+1;
+    }
+  }
+  static inline Topic IDtoTopic(int id) {
+    if(id == 1) {
+      return TOSCHEDULER;
+    } else if(id == 4) {
+      return TOWORKERS;
+    } else if(id == 2){
+      return TOSERVERS;
+    } else if(id % 2 == 1){
+      return TOWORKERS;
+    } else {
+      return TOSERVERS;
+    }
+  }
+  static inline int IDtoGroupID(int id) {
+    if(id == 1) {
+      return 1;
+    } else if(id % 2 == 1) {
+      return 4;// worker
+    } else {
+      return 2;//  server
     }
   }
   /** \brief Returns the number of worker nodes */

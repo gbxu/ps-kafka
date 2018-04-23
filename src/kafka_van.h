@@ -2,8 +2,8 @@
 // DONE:Created by gbxu on 18-4-20.
 //
 
-#ifndef PSLITE_KAFKA_VAN_H
-#define PSLITE_KAFKA_VAN_H
+#ifndef PSLITE_KAFKA_VAN_H_
+#define PSLITE_KAFKA_VAN_H_
 #include <stdlib.h>
 #include <thread>
 #include <string>
@@ -17,17 +17,19 @@
 #endif
 
 namespace ps {
-/**
- * @brief Message delivery report callback.
- *
- * This callback is called exactly once per message, indicating if
- * the message was succesfully delivered
- * (rkmessage->err == RD_KAFKA_RESP_ERR_NO_ERROR) or permanently
- * failed delivery (rkmessage->err != RD_KAFKA_RESP_ERR_NO_ERROR).
- *
- * The callback is triggered from rd_kafka_poll() and executes on
- * the application's thread.
- */
+
+const char* TopicToConst(Topic topic){
+    switch (topic){
+        case TOSCHEDULER:
+            return "TOSCHEDULER";
+        case TOSERVERS:
+            return  "TOSERVERS";
+        case TOWORKERS:
+            return "TOWORKERS";
+        default:
+            return "NONE";
+    }
+}
 
 struct RD {
     rd_kafka_t *rk;//producer/consumer object
@@ -50,10 +52,11 @@ public:
 
 protected:
     void Start(int customer_id) override {
+        Van::Start(customer_id);
         if(my_node_.role == Node::WORKER){
-            partitions_cnt = Postoffice::Get()->num_workers();//consumer partitions
+            partitions_cnt = Postoffice::Get()->num_workers()+1;//consumer partitions
         } else if(my_node_.role = Node::SERVER){
-            partitions_cnt = Postoffice::Get()->num_servers();
+            partitions_cnt = Postoffice::Get()->num_servers()+1;
         } else{
             partitions_cnt = 1;
         }
@@ -94,9 +97,9 @@ protected:
         }
     }
 
-    void Bind(const char *brokers, Meta::Topic tp) override {
+    void Bind(const char *brokers, Topic tp) override {
         //consumer
-        CHECK_NE(tp, Meta::NONE);//empty
+        CHECK_NE(tp, NONE);//empty
 
         auto it = consumers_.find((char *)tp);// null
         if (it != consumers_.end()) {// exists, close the consumer
@@ -111,7 +114,10 @@ protected:
         //conf
         char errstr[512];
         rd_kafka_conf_t *conf = rd_kafka_conf_new();
-        rd_kafka_conf_set_dr_msg_cb(conf, dr_msg_cb);
+        //when scheduler assign the id,
+        // each node should get only one (consumer group 0)
+        rd_kafka_conf_set(conf, "group.id", "0",
+                          errstr, sizeof(errstr));
         //consumer
         rd_kafka_t *rk = rd_kafka_new(RD_KAFKA_CONSUMER, conf, errstr, sizeof(errstr));
         if (!rk) {
@@ -125,7 +131,7 @@ protected:
             exit(1);
         }
         //topic
-        rd_kafka_topic_t *rkt = rd_kafka_topic_new(rk, (const char *)tp, NULL);
+        rd_kafka_topic_t *rkt = rd_kafka_topic_new(rk, TopicToConst(tp), NULL);
         if (!rkt) {
             fprintf(stderr, "%% Failed to create topic object: %s\n",
                     rd_kafka_err2str(rd_kafka_last_error()));
@@ -137,13 +143,12 @@ protected:
 
     }
 
-    void Connect(const char *brokers, Meta::Topic tp) override {
+    void Connect(const char *brokers, Topic tp) override {
         //producer
         // by gbxu:
         //brokers ip:port,ip:port,ip:port
         //brokers ip,ip:port,ip:port //default port is 9092
-        CHECK_NE(tp, Meta::NONE);//empty
-
+        CHECK_NE(tp, NONE);//empty
         auto it = producers_.find((char *)tp);// null
         if (it != producers_.end()) {// exists, close the producer
             RD rd = it->second;
@@ -154,6 +159,7 @@ protected:
             /* Destroy the producer instance */
             rd_kafka_destroy(rk);
         }
+
         //conf
         char errstr[512];
         rd_kafka_conf_t *conf = rd_kafka_conf_new();
@@ -171,7 +177,7 @@ protected:
             exit(1);
         }
         //topic
-        rd_kafka_topic_t *rkt = rd_kafka_topic_new(rk, (const char *)tp, NULL);
+        rd_kafka_topic_t *rkt = rd_kafka_topic_new(rk, TopicToConst(tp), NULL);
         if (!rkt) {
             fprintf(stderr, "%% Failed to create topic object: %s\n",
                     rd_kafka_err2str(rd_kafka_last_error()));
@@ -188,12 +194,11 @@ protected:
         std::lock_guard<std::mutex> lk(mu_);
         //topic partition
         msg.meta.sender = my_node_.id;
-        msg.meta.topic = Postoffice::Get()->IDtoRoletoTopic(msg.meta.recver);
-        msg.meta.partition = Postoffice::IDtoRank(msg.meta.recver);
+        Topic topic = Postoffice::Get()->IDtoTopic(msg.meta.recver);
+        int partition = Postoffice::IDtoPartition(msg.meta.recver);
         // find the producer
-        CHECK_NE(msg.meta.topic, Meta::NONE);
-        CHECK_NE(msg.meta.partition,Meta::kEmpty);
-        Meta::Topic tp = {msg.meta.topic};
+        //CHECK_NE(topic, NONE);
+        //CHECK_NE(partition, kEmpty);
         auto it = producers_.find((char *)tp);
         if (it == producers_.end()) {
             return -1;
@@ -211,7 +216,7 @@ protected:
         }
         retry0:
         if(rd_kafka_produce(rkt,
-                            msg.meta.partition,
+                            partition,
                             RD_KAFKA_MSG_F_COPY,
                             meta_buf, meta_size,
                             (const void*)msg_more, 1,
@@ -243,7 +248,7 @@ protected:
             if (i == n - 1) msg_more = 0;
             retry1:
             if(rd_kafka_produce(rkt,
-                                msg.meta.recver,
+                                partition,
                                 RD_KAFKA_MSG_F_COPY,
                                 data, data_size,
                                 (const void*)msg_more, 1,
@@ -265,7 +270,22 @@ protected:
         msg->data.clear();
         size_t recv_bytes = 0;
         // find the consumer
-        auto it = consumers_.find((char *)Postoffice::IDtoRoletoTopic(my_node_.id));
+        RD it;
+        int partition;
+        if (my_node_.id == Node::kEmpty){
+            partition = 0;//only once for the startup
+            if(Postoffice::is_worker()){
+                it = consumers_.find("TOWORKERS");
+            } else if (Postoffice::is_server()){
+                it = consumers_.find("TOSERVERS");
+            } else{
+              CHECK(0);
+            }
+        } else{
+            it = consumers_.find((char *)Postoffice::IDtoTopic(my_node_.id));
+            partition = Postoffice::IDtoPartition(my_node_.id);//rank+1
+        }
+
         if (it == consumers_.end()) {
             CHECK(0);
         }
@@ -275,7 +295,7 @@ protected:
 
         /* Start consuming */
         if (rd_kafka_consume_start(rkt,
-                                   Postoffice::IDtoRank(my_node_.id),
+                                   partition,
                                    RD_KAFKA_OFFSET_END) == -1){
             CHECK(0);
         }
@@ -290,7 +310,7 @@ protected:
             /* Consume single message.
              * See rdkafka_performance.c for high speed
              * consuming of messages. */
-            rkmessage = rd_kafka_consume(rkt, Postoffice::IDtoRank(my_node_.id), 1000);// time out 1000ms
+            rkmessage = rd_kafka_consume(rkt, partition, 1000);// time out 1000ms
             CHECK_NE(rkmessage->err,0);
             char* buf = CHECK_NOTNULL((char *)rkmessage->payload);
             size_t size = rkmessage->len;
@@ -326,4 +346,4 @@ private:
     int partitions_cnt;
 };
 }  // namespace ps
-#endif //PSLITE_KAFKA_VAN_H
+#endif //PSLITE_KAFKA_VAN_H_

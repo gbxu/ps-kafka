@@ -86,7 +86,7 @@ class Van {
      */
     //virtual void Connect(const Node &node) = 0;
     //virtual void Connect(const Node &node){};
-    virtual void Connect(const char *brokers, Meta::Topic tp);
+    virtual void Connect(const char *brokers, Topic tp) = 0;
     /**
      * \brief bind to my node
      * do multiple retries on binding the port. since it's possible that
@@ -95,7 +95,7 @@ class Van {
      */
     //virtual int Bind(const Node &node, int max_retry);
     //virtual int Bind(const Node &node, int max_retry){};
-    virtual void Bind(const char *brokers, Meta::Topic  tp);
+    virtual void Bind(const char *brokers, Topic  tp) = 0;
 
     /**
      * \brief block until received a message

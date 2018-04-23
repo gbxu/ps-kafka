@@ -94,7 +94,7 @@ struct Node {
   /** \brief hostname or ip */
   std::string hostname;
   /** \brief the port this node is binding */
-  //int port;
+  int port;
   /** \brief whether this node is created by failover */
   bool is_recovery;
 };
@@ -143,8 +143,7 @@ struct Meta {
   /** \brief default constructor */
   Meta() : head(kEmpty), app_id(kEmpty), customer_id(kEmpty),
            timestamp(kEmpty), sender(kEmpty), recver(kEmpty),
-           request(false), push(false), simple_app(false),
-           topic(Meta::NONE),partition(kEmpty) {}
+           request(false), push(false), simple_app(false) {}
   std::string DebugString() const {
     std::stringstream ss;
     if (sender == Node::kEmpty) {
@@ -191,9 +190,9 @@ struct Meta {
   /** \brief whether or not it's for SimpleApp */
   bool simple_app;
   /** \brief the topic what the message will be sent to */
-  enum Topic { TOWORKERS, TOSERVERS, TOSCHEDULER, NONE};
-  Topic topic;
-  int partition;
+  //enum Topic { TOWORKERS, TOSERVERS, TOSCHEDULER, NONE};
+  //Topic topic;
+  //int partition;
   /** \brief an string body */
   std::string body;
   /** \brief data type of message.data[i] */
@@ -228,6 +227,7 @@ struct Message {
     return ss.str();
   }
 };
+enum Topic { TOWORKERS, TOSERVERS, TOSCHEDULER, NONE};
 //gbxu
 //struct TP {
   //  Meta::Topic topic;

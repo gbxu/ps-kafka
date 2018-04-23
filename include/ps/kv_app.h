@@ -398,8 +398,6 @@ void KVServer<Val>::Response(const KVMeta& req, const KVPairs<Val>& res) {
   msg.meta.head        = req.cmd;
   msg.meta.timestamp   = req.timestamp;
   msg.meta.recver      = req.sender;
-  msg.meta.topic       = Postoffice::Get()->IDtoRoletoTopic(req.sender);
-  msg.meta.partition   = Postoffice::Get()->IDtoRank(req.sender);
   if (res.keys.size()) {
     msg.AddData(res.keys);
     msg.AddData(res.vals);
@@ -495,8 +493,6 @@ void KVWorker<Val>::Send(int timestamp, bool push, int cmd, const KVPairs<Val>& 
     msg.meta.head        = cmd;
     msg.meta.timestamp   = timestamp;
     msg.meta.recver      = Postoffice::Get()->ServerRankToID(i);
-    msg.meta.topic       = Meta::TOSERVERS;
-    msg.meta.partition   = i;
     const auto& kvs = s.second;
     if (kvs.keys.size()) {
       msg.AddData(kvs.keys);

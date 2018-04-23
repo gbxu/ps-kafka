@@ -48,7 +48,7 @@ void RunWorker() {
 }
 */
 int main(int argc, char *argv[]) {
-  /*
+/*
   // setup server nodes
   StartServer();
   // start system
@@ -57,6 +57,6 @@ int main(int argc, char *argv[]) {
   RunWorker();
   // stop system
   Finalize(0, true);
-   */
+*/
   return 0;
 }

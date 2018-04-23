@@ -63,7 +63,7 @@ void Postoffice::Start(int customer_id, const char* argv0, const bool do_barrier
   }
   start_mu_.unlock();
 
-  // start van
+  // start kafka_van
   van_->Start(customer_id);
 
   start_mu_.lock();

@@ -14,6 +14,7 @@ shift
 arg="$@"
 
 # start the scheduler
+export BROKERS='localhost:9092'
 export DMLC_PS_ROOT_URI='127.0.0.1'
 export DMLC_PS_ROOT_PORT=8000
 export DMLC_ROLE='scheduler'

@@ -10,7 +10,6 @@
 #include "ps/internal/customer.h"
 #include "./network_utils.h"
 #include "./meta.pb.h"
-#include "./zmq_van.h"
 #include "./kafka_van.h"
 #include "./resender.h"
 namespace ps {
@@ -45,7 +44,7 @@ void Van::ProcessAddNodeCommandAtScheduler(
     // sort the nodes according their ip and port,
     std::sort(nodes->control.node.begin(), nodes->control.node.end(),
               [](const Node& a, const Node& b) {
-                  return (a.hostname.compare(b.hostname)) > 0;
+                  return (a.hostname.compare(b.hostname) | (a.port < b.port)) > 0;
               });
     // assign node rank
     for (auto& node : nodes->control.node) {
@@ -77,7 +76,7 @@ void Van::ProcessAddNodeCommandAtScheduler(
     for (int r : Postoffice::Get()->GetNodeIDs(kWorkerGroup + kServerGroup)) {
       int recver_id = r;
       if (shared_node_mapping_.find(r) == shared_node_mapping_.end()) {
-        back.meta.recver = recver_id;//
+        back.meta.recver = Postoffice::IDtoGroupID(recver_id);//add new node
         back.meta.timestamp = timestamp_++;
         Send(back);
       }
@@ -116,13 +115,14 @@ void Van::UpdateLocalID(Message* msg, std::unordered_set<int>* deadnodes_set,
   auto& ctrl = msg->meta.control;
   int num_nodes = Postoffice::Get()->num_servers() + Postoffice::Get()->num_workers();
   // assign an id
-  if (msg->meta.sender == Meta::kEmpty) {
+  if (msg->meta.sender == Meta::kEmpty) {//new node
     CHECK(is_scheduler_);
     CHECK_EQ(ctrl.node.size(), 1);
     if (nodes->control.node.size() < num_nodes) {
-      nodes->control.node.push_back(ctrl.node[0]);
+      nodes->control.node.push_back(ctrl.node[0]);//add the new node
     } else {
       // some node dies and restarts
+      //gbxu: however nodes is empty??
       CHECK(ready_.load());
       for (size_t i = 0; i < nodes->control.node.size() - 1; ++i) {
         const auto& node = nodes->control.node[i];
@@ -145,10 +145,9 @@ void Van::UpdateLocalID(Message* msg, std::unordered_set<int>* deadnodes_set,
   // update my id
   for (size_t i = 0; i < ctrl.node.size(); ++i) {
     const auto& node = ctrl.node[i];
-    //if (my_node_.hostname == node.hostname && my_node_.port == node.port) {//gbxu
-    if (my_node_.hostname == node.hostname) {
+    if (my_node_.hostname == node.hostname && my_node_.port == node.port) {//gbxu
       if (getenv("DMLC_RANK") == nullptr) {
-        my_node_ = node;
+        my_node_ = node;//update the my_node_.id
         std::string rank = std::to_string(Postoffice::IDtoRank(node.id));
 #ifdef _MSC_VER
         _putenv_s("DMLC_RANK", rank.c_str());
@@ -233,12 +232,12 @@ void Van::ProcessAddNodeCommand(Message* msg, Meta* nodes, Meta* recovery_nodes)
   if (is_scheduler_) {
     ProcessAddNodeCommandAtScheduler(msg, nodes, recovery_nodes);
   } else {
+    //new node send the add_node info, then scheduler will send the info back.
     for (const auto& node : ctrl.node) {
-      //std::string addr_str = node.hostname + ":" + std::to_string(node.port);
-      std::string addr_str = node.hostname;//gbxu
-      if (connected_nodes_.find(addr_str) == connected_nodes_.end()) {
-        //Connect(node);//gbxu
-        connected_nodes_[addr_str] = node.id;
+      std::string addr_str = node.hostname + ":" + std::to_string(node.port);
+      if (connected_nodes_.find(addr_str) == connected_nodes_.end()) {//new node
+        //Connect(node);//gbxu:according the msg from scheduler, connect another workers or servers
+        connected_nodes_[addr_str] = node.id;//include mysele
       }
       if (!node.is_recovery && node.role == Node::SERVER) ++num_servers_;
       if (!node.is_recovery && node.role == Node::WORKER) ++num_workers_;
@@ -253,6 +252,7 @@ void Van::Start(int customer_id) {
   start_mu_.lock();
   if (init_stage == 0) {
     scheduler_.hostname = std::string(CHECK_NOTNULL(Environment::Get()->find("DMLC_PS_ROOT_URI")));
+    scheduler_.port = atoi(CHECK_NOTNULL(Environment::Get()->find("DMLC_PS_ROOT_PORT")));
     scheduler_.role = Node::SCHEDULER;
     scheduler_.id = kScheduler;
     is_scheduler_ = Postoffice::Get()->is_scheduler();
@@ -284,7 +284,7 @@ void Van::Start(int customer_id) {
       CHECK(port) << "failed to get a port";
       my_node_.hostname = ip;
       my_node_.role = role;
-      //my_node_.port = port; //gbxu
+      my_node_.port = port;
       // cannot determine my id now, the scheduler will assign it later
       // set it explicitly to make re-register within a same process possible
       my_node_.id = Node::kEmpty;
@@ -303,17 +303,17 @@ void Van::Start(int customer_id) {
     const char *brokers = Environment::Get()->find("BROKERS");
     // todo:remove one of producers?
     if(is_scheduler_) {
-      Connect(brokers,Meta::TOSERVERS);//producer
-      Connect(brokers,Meta::TOWORKERS);//producer
-      Bind(brokers,Meta::TOSCHEDULER);//consumer
+      Connect(brokers,TOSERVERS);//producer
+      Connect(brokers,TOWORKERS);//producer
+      Bind(brokers,TOSCHEDULER);//consumer
     }else if(Postoffice::Get()->is_worker()) {
-      Connect(brokers,Meta::TOSCHEDULER);//producer
-      Connect(brokers,Meta::TOSERVERS);//producer
-      Bind(brokers,Meta::TOWORKERS);//consumer
+      Connect(brokers,TOSCHEDULER);//producer
+      Connect(brokers,TOSERVERS);//producer
+      Bind(brokers,TOWORKERS);//consumer
     } else {
-      Connect(brokers,Meta::TOSCHEDULER);//producer
-      Connect(brokers,Meta::TOWORKERS);//producer
-      Bind(brokers,Meta::TOSERVERS);//consumer
+      Connect(brokers,TOSCHEDULER);//producer
+      Connect(brokers,TOWORKERS);//producer
+      Bind(brokers,TOSERVERS);//consumer
     }
     // ---]
 
@@ -341,11 +341,12 @@ void Van::Start(int customer_id) {
   }
   // wait until ready
   while (!ready_.load()) {
+    printf("debug:waiting\n");
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
   }
 
   start_mu_.lock();
-  if (init_stage == 1) {
+  if (init_stage == 1) {//pass by now
     // resender
     if (Environment::Get()->find("PS_RESEND") && atoi(Environment::Get()->find("PS_RESEND")) != 0) {
       int timeout = 1000;
@@ -463,7 +464,7 @@ void Van::PackMeta(const Meta& meta, char** meta_buf, int* buf_size) {
       auto p = ctrl->add_node();
       p->set_id(n.id);
       p->set_role(n.role);
-      //p->set_port(n.port);
+      p->set_port(n.port);
       p->set_hostname(n.hostname);
       p->set_is_recovery(n.is_recovery);
       p->set_customer_id(n.customer_id);
@@ -505,7 +506,7 @@ void Van::UnpackMeta(const char* meta_buf, int buf_size, Meta* meta) {
       const auto& p = ctrl.node(i);
       Node n;
       n.role = static_cast<Node::Role>(p.role());
-      //n.port = p.port();
+      n.port = p.port();
       n.hostname = p.hostname();
       n.id = p.has_id() ? p.id() : Node::kEmpty;
       n.is_recovery = p.is_recovery();
