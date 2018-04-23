@@ -145,8 +145,6 @@ inline int SimpleApp::Request(int req_head, const std::string& req_body, int rec
 
   // send
   for (int r : Postoffice::Get()->GetNodeIDs(recv_id)) {
-    msg.meta.topic = Postoffice::IDtoRoletoTopic(r);
-    msg.meta.partition = Postoffice::IDtoRank(r);
     msg.meta.recver = r;
     Postoffice::Get()->van()->Send(msg);
   }
@@ -164,8 +162,6 @@ inline void SimpleApp::Response(const SimpleData& req, const std::string& res_bo
   msg.meta.app_id = obj_->app_id();
   msg.meta.customer_id = req.customer_id;
   msg.meta.recver = req.sender;
-  msg.meta.topic = Postoffice::IDtoRoletoTopic(req.sender);
-  msg.meta.partition = Postoffice::IDtoRank(req.sender);
   // send
   Postoffice::Get()->van()->Send(msg);
 }
