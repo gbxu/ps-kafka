@@ -270,7 +270,7 @@ protected:
         msg->data.clear();
         size_t recv_bytes = 0;
         // find the consumer
-        RD it;
+        auto it;
         int partition;
         if (my_node_.id == Node::kEmpty){
             partition = 0;//only once for the startup
