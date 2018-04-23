@@ -74,8 +74,8 @@ class Resender {
       Message ack;
       ack.meta.recver     = msg.meta.sender;
       ack.meta.sender     = msg.meta.recver;
-      ack.meta.topic      = Postoffice::IDtoRoletoTopic(msg.meta.sender);
-      ack.meta.partition  = Postoffice::IDtoRank(msg.meta.sender);
+      //ack.meta.topic      = Postoffice::IDtoRoletoTopic(msg.meta.sender);
+      //ack.meta.partition  = Postoffice::IDtoRank(msg.meta.sender);
       ack.meta.control.cmd = Control::ACK;
       ack.meta.control.msg_sig = key;
       van_->Send(ack);
