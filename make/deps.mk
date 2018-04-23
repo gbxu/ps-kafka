@@ -15,12 +15,12 @@ ${PROTOBUF}:
 	cd $(DIR) && export CFLAGS=-fPIC && export CXXFLAGS=-fPIC && ./configure -prefix=$(DEPS_PATH) && $(MAKE) && $(MAKE) install
 	rm -rf $(FILE) $(DIR)
 
-# zmq
-ZMQ = ${DEPS_PATH}/include/zmq.h
+# rdkafka
+RDKAFKA = ${DEPS_PATH}/include/librdkafka/rdkafka.h
 
-${ZMQ}:
-	$(eval FILE=zeromq-4.1.4.tar.gz)
-	$(eval DIR=zeromq-4.1.4)
+${RDKAFKA}:
+	$(eval FILE=rdkafka.tar.gz)
+	$(eval DIR=rdkafka)
 	rm -rf $(FILE) $(DIR)
 	$(WGET) $(URL)/$(FILE) && tar --no-same-owner -zxf $(FILE)
 	cd $(DIR) && export CFLAGS=-fPIC && export CXXFLAGS=-fPIC && ./configure -prefix=$(DEPS_PATH) --with-libsodium=no --with-libgssapi_krb5=no && $(MAKE) && $(MAKE) install
