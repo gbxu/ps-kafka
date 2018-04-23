@@ -3,7 +3,7 @@
  */
 #ifndef PS_ZMQ_VAN_H_
 #define PS_ZMQ_VAN_H_
-#include <zmq.h>
+//#include <zmq.h>
 #include <stdlib.h>
 #include <thread>
 #include <string>
