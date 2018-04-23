@@ -26,7 +26,7 @@ if (NOT __RDKAFKA_INCLUDED) # guard against multiple includes
     set(RDKAFKA_C_FLAGS ${CMAKE_C_FLAGS} ${RDKAFKA_EXTRA_COMPILER_FLAGS})
 
     ExternalProject_Add(RDKAFKA
-            PREFIX ${ZMQ_PREFIX}
+            PREFIX ${RDKAFKA_PREFIX}
             GIT_REPOSITORY "https://github.com/edenhill/librdkafka.git"
             UPDATE_COMMAND ""
             INSTALL_DIR ${RDKAFKA_INSTALL}

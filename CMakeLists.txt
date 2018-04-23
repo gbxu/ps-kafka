@@ -14,10 +14,10 @@ set(pskafka_LINKER_LIBS_L_RELEASE "" )
 set(pskafka_LINKER_LIBS_L_DEBUG "" )
 set(pskafka_INCLUDE_DIR_L "" )
 
-# ---[ zmq
+# ---[ rdkafka
 include("cmake/External/rdkafka.cmake")
-include_directories(pskafka ${ZMQ_INCLUDE_DIRS})
-list(APPEND pskafka_LINKER_LIBS_L ${ZMQ_LIBRARIES})
+include_directories(pskafka ${RDKAFKA_INCLUDE_DIRS})
+list(APPEND pskafka_LINKER_LIBS_L ${RDKAFKA_LIBRARIES})
 # ---[ Google-protobuf
 include(cmake/ProtoBuf.cmake)
 
