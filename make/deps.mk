@@ -1,6 +1,7 @@
 # Install dependencies
 
 URL=https://raw.githubusercontent.com/mli/deps/master/build
+GBURL=https://raw.githubusercontent.com/gbxu/deps/blob/master/build
 ifndef WGET
 WGET = wget
 endif
@@ -22,7 +23,7 @@ ${RDKAFKA}:
 	$(eval FILE=rdkafka.tar.gz)
 	$(eval DIR=rdkafka)
 	rm -rf $(FILE) $(DIR)
-	$(WGET) $(URL)/$(FILE) && tar --no-same-owner -zxf $(FILE)
+	$(WGET) $(GBURL)/$(FILE) && tar --no-same-owner -zxf $(FILE)
 	cd $(DIR) && export CFLAGS=-fPIC && export CXXFLAGS=-fPIC && ./configure -prefix=$(DEPS_PATH) --with-libsodium=no --with-libgssapi_krb5=no && $(MAKE) && $(MAKE) install
 	rm -rf $(FILE) $(DIR)
 
