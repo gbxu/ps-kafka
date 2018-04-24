@@ -148,6 +148,7 @@ void Van::UpdateLocalID(Message* msg, std::unordered_set<int>* deadnodes_set,
     if (my_node_.hostname == node.hostname && my_node_.port == node.port) {//gbxu
       if (getenv("DMLC_RANK") == nullptr) {
         my_node_ = node;//update the my_node_.id
+        printf("debug update id:%d\n",my_node_.id);
         std::string rank = std::to_string(Postoffice::IDtoRank(node.id));
 #ifdef _MSC_VER
         _putenv_s("DMLC_RANK", rank.c_str());
@@ -341,7 +342,6 @@ void Van::Start(int customer_id) {
   }
   // wait until ready
   while (!ready_.load()) {
-    printf("debug:waiting\n");
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
   }
 

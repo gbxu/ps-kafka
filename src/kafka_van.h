@@ -30,7 +30,25 @@ const char* TopicToConst(Topic topic){
             return "NONE";
     }
 }
-
+const char* CmdToConst(Control::Command cmd){
+    printf("deb");
+    switch (cmd){
+        case EMPTY:
+            return "EMPTY";
+        case TERMINATE:
+            return  "TERMINATE";
+        case ADD_NODE:
+            return "ADD_NODE";
+        case BARRIER:
+            return "BARRIER";
+        case ACK:
+            return "ACK";
+        case HEARTBEAT:
+            return "HEARTBEAT";
+        default:
+            return "NONE";
+    }
+}
 struct RD {
     rd_kafka_t *rk;//producer/consumer object
     rd_kafka_topic_t *rkt;//topic object
@@ -100,8 +118,18 @@ protected:
     void Bind(const char *brokers, Topic topic) override {
         //consumer
         CHECK_NE(topic, NONE);//empty
-
-        auto it = consumers_.find((char *)topic);// null
+        if(is_scheduler_){
+            printf("debug scheduler:");
+            printf("Bind:%s \n",TopicToConst(topic));
+        } else if(Postoffice::Get()->is_server()) {
+            printf("debug server:");
+            printf("Bind:%s \n",TopicToConst(topic));
+        }
+        else{
+            printf("debug worker:");
+            printf("Bind:%s \n",TopicToConst(topic));
+        }
+        auto it = consumers_.find(TopicToConst(topic));// null
         if (it != consumers_.end()) {// exists, close the consumer
             RD rd = it->second;
             rd_kafka_t *rk = rd.rk;
@@ -139,8 +167,7 @@ protected:
             return;
         }
         RD rd = {rk, rkt};
-        consumers_[(char *)topic] = rd;
-
+        consumers_[TopicToConst(topic)] = rd;
     }
 
     void Connect(const char *brokers, Topic topic) override {
@@ -149,7 +176,18 @@ protected:
         //brokers ip:port,ip:port,ip:port
         //brokers ip,ip:port,ip:port //default port is 9092
         CHECK_NE(topic, NONE);//empty
-        auto it = producers_.find((char *)topic);// null
+        if(is_scheduler_){
+            printf("debug scheduler:");
+            printf("Connect:%s \n",TopicToConst(topic));
+        } else if(Postoffice::Get()->is_server()) {
+            printf("debug server:");
+            printf("Connect:%s \n",TopicToConst(topic));
+        }
+        else{
+            printf("debug worker:");
+            printf("Connect:%s \n",TopicToConst(topic));
+        }
+        auto it = producers_.find(TopicToConst(topic));// null
         if (it != producers_.end()) {// exists, close the producer
             RD rd = it->second;
             rd_kafka_t *rk = rd.rk;
@@ -185,7 +223,7 @@ protected:
             return;
         }
         RD rd = {rk, rkt};
-        producers_[(char *)topic] = rd;
+        producers_[TopicToConst(topic)] = rd;
     }
 
 
@@ -199,7 +237,7 @@ protected:
         // find the producer
         //CHECK_NE(topic, NONE);
         //CHECK_NE(partition, kEmpty);
-        auto it = producers_.find((char *)topic);
+        auto it = producers_.find(TopicToConst(topic));
         if (it == producers_.end()) {
             return -1;
         }
@@ -208,6 +246,17 @@ protected:
         rd_kafka_topic_t *rkt = rd.rkt;
         // send meta
         int meta_size; char* meta_buf;
+        if(is_scheduler_){
+            printf("debug scheduler:");
+            printf("debug sendmsg %s%d:%s\n",TopicToConst(topic),partition,CmdToConst(msg.meta.control.cmd));
+        } else if(Postoffice::Get()->is_server()) {
+            printf("debug server:");
+            printf("debug sendmsg %s%d:%s\n",TopicToConst(topic),partition,CmdToConst(msg.meta.control.cmd));
+        }
+        else{
+            printf("debug worker:");
+            printf("debug sendmsg %s%d::%s\n",TopicToConst(topic),partition,CmdToConst(msg.meta.control.cmd));
+        }
         PackMeta(msg.meta, &meta_buf, &meta_size);
         int n = msg.data.size();
         int msg_more = 0;
@@ -270,7 +319,7 @@ protected:
         msg->data.clear();
         size_t recv_bytes = 0;
         // find the consumer
-        std::unordered_map<char*, RD>::iterator it;
+        std::unordered_map<const char*, RD>::iterator it;
         int partition;
         if (my_node_.id == Node::kEmpty){
             partition = 0;//only once for the startup
@@ -282,8 +331,8 @@ protected:
               CHECK(0);
             }
         } else{
-            it = consumers_.find((char *)Postoffice::IDtoTopic(my_node_.id));
-            partition = Postoffice::IDtoPartition(my_node_.id);//rank+1
+            it = consumers_.find(TopicToConst(Postoffice::IDtoTopic(my_node_.id)));
+            partition = Postoffice::IDtoPartition(my_node_.id);//rank+1 or 0
         }
 
         if (it == consumers_.end()) {
@@ -296,7 +345,7 @@ protected:
         /* Start consuming */
         if (rd_kafka_consume_start(rkt,
                                    partition,
-                                   RD_KAFKA_OFFSET_END) == -1){
+                                   RD_KAFKA_OFFSET_STORED) == -1){
             CHECK(0);
         }
 
@@ -316,11 +365,21 @@ protected:
             size_t size = rkmessage->len;
             recv_bytes += size;
 
-            if (i == 0) {//data
+            if (i == 0) {//meta
                 // identify
                 msg->meta.recver = my_node_.id;
                 // task
                 UnpackMeta(buf, size, &(msg->meta));//
+                if(is_scheduler_){
+                    printf("debug scheduler:");
+                    printf("recvmsg from%s%d:%s\n",TopicToConst(Postoffice::IDtoTopic(my_node_.id)),partition,CmdToConst(msg->meta.control.cmd));
+                } else if(Postoffice::Get()->is_server()){
+                    printf("debug server:");
+                    printf("recvmsg from%s%d:%s\n",TopicToConst(Postoffice::IDtoTopic(my_node_.id)),partition,CmdToConst(msg->meta.control.cmd));
+                } else{
+                    printf("debug worker:");
+                    printf("recvmsg from%s%d:%s\n",TopicToConst(Postoffice::IDtoTopic(my_node_.id)),partition,CmdToConst(msg->meta.control.cmd));
+                }
                 rd_kafka_message_destroy(rkmessage);
                 if (!rkmessage->key) break;
             } else {
@@ -340,8 +399,8 @@ private:
     /**
      * \brief node_id to the socket for sending data to this node
      */
-    std::unordered_map<char*, RD> producers_;
-    std::unordered_map<char*, RD> consumers_;
+    std::unordered_map<const char*, RD> producers_;
+    std::unordered_map<const char*, RD> consumers_;
     std::mutex mu_;
     int partitions_cnt;
 };
