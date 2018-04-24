@@ -11,7 +11,7 @@
 #include <signal.h>
 #include "ps/internal/van.h"
 #include <librdkafka/rdkafka.h>
-
+#include "ps/debug.h"
 #if _MSC_VER
 #define rand_r(x) rand()
 #endif
@@ -30,21 +30,14 @@ const char* TopicToConst(Topic topic){
             return "NONE";
     }
 }
-const char* CmdToConst(Control::Command cmd){
-    printf("deb");
-    switch (cmd){
-        case EMPTY:
-            return "EMPTY";
-        case TERMINATE:
-            return  "TERMINATE";
-        case ADD_NODE:
-            return "ADD_NODE";
-        case BARRIER:
-            return "BARRIER";
-        case ACK:
-            return "ACK";
-        case HEARTBEAT:
-            return "HEARTBEAT";
+char* TopicToChars(Topic topic){
+    switch (topic){
+        case TOSCHEDULER:
+            return "TOSCHEDULER";
+        case TOSERVERS:
+            return  "TOSERVERS";
+        case TOWORKERS:
+            return "TOWORKERS";
         default:
             return "NONE";
     }
@@ -118,17 +111,9 @@ protected:
     void Bind(const char *brokers, Topic topic) override {
         //consumer
         CHECK_NE(topic, NONE);//empty
-        if(is_scheduler_){
-            printf("debug scheduler:");
-            printf("Bind:%s \n",TopicToConst(topic));
-        } else if(Postoffice::Get()->is_server()) {
-            printf("debug server:");
-            printf("Bind:%s \n",TopicToConst(topic));
-        }
-        else{
-            printf("debug worker:");
-            printf("Bind:%s \n",TopicToConst(topic));
-        }
+        DebugOut debug = DebugOut(my_node_);
+        debug.stream()<<"Bind"<<TopicToChars(topic);
+        debug.Out();
         auto it = consumers_.find(TopicToConst(topic));// null
         if (it != consumers_.end()) {// exists, close the consumer
             RD rd = it->second;
@@ -176,17 +161,9 @@ protected:
         //brokers ip:port,ip:port,ip:port
         //brokers ip,ip:port,ip:port //default port is 9092
         CHECK_NE(topic, NONE);//empty
-        if(is_scheduler_){
-            printf("debug scheduler:");
-            printf("Connect:%s \n",TopicToConst(topic));
-        } else if(Postoffice::Get()->is_server()) {
-            printf("debug server:");
-            printf("Connect:%s \n",TopicToConst(topic));
-        }
-        else{
-            printf("debug worker:");
-            printf("Connect:%s \n",TopicToConst(topic));
-        }
+        DebugOut tmp = DebugOut(my_node_);
+        tmp.stream()<<"Connect:"<<TopicToChars(topic);
+        tmp.Out();
         auto it = producers_.find(TopicToConst(topic));// null
         if (it != producers_.end()) {// exists, close the producer
             RD rd = it->second;
@@ -246,46 +223,51 @@ protected:
         rd_kafka_topic_t *rkt = rd.rkt;
         // send meta
         int meta_size; char* meta_buf;
-        if(is_scheduler_){
-            printf("debug scheduler:");
-            printf("debug sendmsg %s%d:%s\n",TopicToConst(topic),partition,CmdToConst(msg.meta.control.cmd));
-        } else if(Postoffice::Get()->is_server()) {
-            printf("debug server:");
-            printf("debug sendmsg %s%d:%s\n",TopicToConst(topic),partition,CmdToConst(msg.meta.control.cmd));
-        }
-        else{
-            printf("debug worker:");
-            printf("debug sendmsg %s%d::%s\n",TopicToConst(topic),partition,CmdToConst(msg.meta.control.cmd));
-        }
         PackMeta(msg.meta, &meta_buf, &meta_size);
+        DebugOut debug = DebugOut(my_node_);
+        debug.stream()<<"sendmsg:"<<TopicToConst(topic)<<partition \
+                        <<":"<<msg.meta.control.DebugString() \
+                        <<"size :"<<meta_size;
+        debug.Out();
         int n = msg.data.size();
-        int msg_more = 0;
-        if(n != 0){
-            msg_more = 1;
-        }
-        retry0:
-        if(rd_kafka_produce(rkt,
-                            partition,
-                            RD_KAFKA_MSG_F_COPY,
-                            meta_buf, meta_size,
-                            (const void*)msg_more, 1,
-                            NULL) == -1){
-
-            /* Poll to handle delivery reports */
-            if (rd_kafka_last_error() ==
-                RD_KAFKA_RESP_ERR__QUEUE_FULL) {
-                /* If the internal queue is full, wait for
-                 * messages to be delivered and then retry.
-                 * The internal queue represents both
-                 * messages to be sent and messages that have
-                 * been sent or failed, awaiting their
-                 * delivery report callback to be called.
-                 *
-                 * The internal queue is limited by the
-                 * configuration property
-                 * queue.buffering.max.messages */
-                rd_kafka_poll(rk, 1000/*block for max 1000ms*/);
-                goto retry0;
+        if(n == 0){
+            retry0:
+            if(rd_kafka_produce(rkt,
+                                partition,
+                                RD_KAFKA_MSG_F_COPY,
+                                meta_buf, meta_size,
+                                "f", 1,/*no more*/
+                                NULL) == -1){
+                /* Poll to handle delivery reports */
+                if (rd_kafka_last_error() ==
+                    RD_KAFKA_RESP_ERR__QUEUE_FULL) {
+                    /* If the internal queue is full, wait for
+                     * messages to be delivered and then retry.
+                     * The internal queue represents both
+                     * messages to be sent and messages that have
+                     * been sent or failed, awaiting their
+                     * delivery report callback to be called.
+                     *
+                     * The internal queue is limited by the
+                     * configuration property
+                     * queue.buffering.max.messages */
+                    rd_kafka_poll(rk, 1000/*block for max 1000ms*/);
+                    goto retry0;
+                }
+            }
+        }else{
+            retry1:
+            if(rd_kafka_produce(rkt,
+                                partition,
+                                RD_KAFKA_MSG_F_COPY,
+                                meta_buf, meta_size,
+                                "t", 1,/*more*/
+                                NULL) == -1){
+                if (rd_kafka_last_error() ==
+                    RD_KAFKA_RESP_ERR__QUEUE_FULL) {
+                    rd_kafka_poll(rk, 1000/*block for max 1000ms*/);
+                    goto retry1;
+                }
             }
         }
         rd_kafka_poll(rk, 0/*non-blocking*/);
@@ -294,19 +276,35 @@ protected:
         for (int i = 0; i < n; ++i) {
             SArray<char>* data = new SArray<char>(msg.data[i]);
             int data_size = data->size();
-            if (i == n - 1) msg_more = 0;
-            retry1:
-            if(rd_kafka_produce(rkt,
-                                partition,
-                                RD_KAFKA_MSG_F_COPY,
-                                data, data_size,
-                                (const void*)msg_more, 1,
-                                NULL) == -1){
-                if (rd_kafka_last_error() ==
-                    RD_KAFKA_RESP_ERR__QUEUE_FULL) {
-                    //queue full
-                    rd_kafka_poll(rk, 1000/*block for max 1000ms*/);
-                    goto retry1;
+            if (i == n - 1) {
+                retry2:
+                if(rd_kafka_produce(rkt,
+                                    partition,
+                                    RD_KAFKA_MSG_F_COPY,
+                                    data, data_size,
+                                    "f", 1,/*no more*/
+                                    NULL) == -1){
+                    if (rd_kafka_last_error() ==
+                        RD_KAFKA_RESP_ERR__QUEUE_FULL) {
+                        //queue full
+                        rd_kafka_poll(rk, 1000/*block for max 1000ms*/);
+                        goto retry2;
+                    }
+                }
+            } else{
+                retry3:
+                if(rd_kafka_produce(rkt,
+                                    partition,
+                                    RD_KAFKA_MSG_F_COPY,
+                                    data, data_size,
+                                    "t", 1,/*more*/
+                                    NULL) == -1){
+                    if (rd_kafka_last_error() ==
+                        RD_KAFKA_RESP_ERR__QUEUE_FULL) {
+                        //queue full
+                        rd_kafka_poll(rk, 1000/*block for max 1000ms*/);
+                        goto retry3;
+                    }
                 }
             }
             rd_kafka_poll(rk, 0/*non-blocking*/);
@@ -321,19 +319,21 @@ protected:
         // find the consumer
         std::unordered_map<const char*, RD>::iterator it;
         int partition;
+        Topic topic;
         if (my_node_.id == Node::kEmpty){
             partition = 0;//only once for the startup
             if(Postoffice::Get()->is_worker()){
-                it = consumers_.find("TOWORKERS");
+                topic = TOWORKERS;
             } else if (Postoffice::Get()->is_server()){
-                it = consumers_.find("TOSERVERS");
+                topic = TOSERVERS;
             } else{
               CHECK(0);
             }
         } else{
-            it = consumers_.find(TopicToConst(Postoffice::IDtoTopic(my_node_.id)));
+            topic = Postoffice::IDtoTopic(my_node_.id);
             partition = Postoffice::IDtoPartition(my_node_.id);//rank+1 or 0
         }
+        it = consumers_.find(TopicToConst(topic));
 
         if (it == consumers_.end()) {
             CHECK(0);
@@ -345,7 +345,7 @@ protected:
         /* Start consuming */
         if (rd_kafka_consume_start(rkt,
                                    partition,
-                                   RD_KAFKA_OFFSET_STORED) == -1){
+                                   RD_KAFKA_OFFSET_END) == -1){
             CHECK(0);
         }
 
@@ -359,29 +359,36 @@ protected:
             /* Consume single message.
              * See rdkafka_performance.c for high speed
              * consuming of messages. */
-            rkmessage = rd_kafka_consume(rkt, partition, 1000);// time out 1000ms
-            CHECK_NE(rkmessage->err,0);
+            while(1){
+                rkmessage = rd_kafka_consume(rkt, partition, 1000);//block:not time out 1000ms
+                if(!rkmessage){
+                    continue;
+                } else if(rkmessage->err){
+                    //printf("debug:err:%s\n",rd_kafka_err2str(rkmessage->err));
+                    continue;
+                } else {
+                    break;
+                }
+            }
+            CHECK_EQ(rkmessage->err,0);
             char* buf = CHECK_NOTNULL((char *)rkmessage->payload);
             size_t size = rkmessage->len;
             recv_bytes += size;
 
+            char * tmp = (char *)rkmessage->key;
             if (i == 0) {//meta
                 // identify
                 msg->meta.recver = my_node_.id;
                 // task
                 UnpackMeta(buf, size, &(msg->meta));//
-                if(is_scheduler_){
-                    printf("debug scheduler:");
-                    printf("recvmsg from%s%d:%s\n",TopicToConst(Postoffice::IDtoTopic(my_node_.id)),partition,CmdToConst(msg->meta.control.cmd));
-                } else if(Postoffice::Get()->is_server()){
-                    printf("debug server:");
-                    printf("recvmsg from%s%d:%s\n",TopicToConst(Postoffice::IDtoTopic(my_node_.id)),partition,CmdToConst(msg->meta.control.cmd));
-                } else{
-                    printf("debug worker:");
-                    printf("recvmsg from%s%d:%s\n",TopicToConst(Postoffice::IDtoTopic(my_node_.id)),partition,CmdToConst(msg->meta.control.cmd));
-                }
                 rd_kafka_message_destroy(rkmessage);
-                if (!rkmessage->key) break;
+
+                DebugOut debug = DebugOut(my_node_);
+                debug.stream()<<"recvmsg from"<<TopicToConst(topic)<<partition \
+                            <<":"<<msg->meta.control.DebugString() \
+                            <<" size:"<<size<<" meta:"<<msg->meta.DebugString();
+                debug.Out();
+                if (*tmp == 'f') break;
             } else {
                 // zero-copy
                 SArray<char> data;
@@ -389,7 +396,14 @@ protected:
                     rd_kafka_message_destroy(rkmessage);
                 });
                 msg->data.push_back(data);
-                if (!rkmessage->key) break;
+
+                DebugOut debug = DebugOut(my_node_);
+                debug.stream()<<"2recvmsg from"<<TopicToConst(topic)<<partition \
+                            <<":"<<msg->meta.control.DebugString() \
+                            <<" size:"<<size<<" meta:"<<msg->meta.DebugString();
+                debug.Out();
+
+                if (*tmp == 'f') break;
             }
         }
         return recv_bytes;

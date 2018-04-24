@@ -131,7 +131,8 @@ void Postoffice::Barrier(int customer_id, int node_group) {
   if (GetNodeIDs(node_group).size() <= 1) return;
   auto role = van_->my_node().role;
   if (role == Node::SCHEDULER) {
-    CHECK(node_group & kScheduler);
+    return;
+    //CHECK(node_group & kScheduler);
   } else if (role == Node::WORKER) {
     CHECK(node_group & kWorkerGroup);
   } else if (role == Node::SERVER) {
@@ -168,6 +169,7 @@ const std::vector<Range>& Postoffice::GetServerKeyRanges() {
 }
 
 void Postoffice::Manage(const Message& recv) {
+  //the barrier is opened by scheduler,then the node is responsed.
   CHECK(!recv.meta.control.empty());
   const auto& ctrl = recv.meta.control;
   if (ctrl.cmd == Control::BARRIER && !recv.meta.request) {

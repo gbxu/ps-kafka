@@ -12,6 +12,7 @@
 #include "./meta.pb.h"
 #include "./kafka_van.h"
 #include "./resender.h"
+
 namespace ps {
 
 // interval in second between to heartbeast signals. 0 means no heartbeat.
@@ -148,7 +149,7 @@ void Van::UpdateLocalID(Message* msg, std::unordered_set<int>* deadnodes_set,
     if (my_node_.hostname == node.hostname && my_node_.port == node.port) {//gbxu
       if (getenv("DMLC_RANK") == nullptr) {
         my_node_ = node;//update the my_node_.id
-        printf("debug update id:%d\n",my_node_.id);
+
         std::string rank = std::to_string(Postoffice::IDtoRank(node.id));
 #ifdef _MSC_VER
         _putenv_s("DMLC_RANK", rank.c_str());
@@ -187,14 +188,16 @@ void Van::ProcessBarrierCommand(Message* msg) {
     ++barrier_count_[group];
     PS_VLOG(1) << "Barrier count for " << group << " : " << barrier_count_[group];
     if (barrier_count_[group] ==
-        static_cast<int>(Postoffice::Get()->GetNodeIDs(group).size())) {
-      barrier_count_[group] = 0;
+        //static_cast<int>(Postoffice::Get()->GetNodeIDs(group).size())) {
+        static_cast<int>(Postoffice::Get()->GetNodeIDs(group).size()-1)) {//gbxu
+        barrier_count_[group] = 0;
       Message res;
       res.meta.request = false;
       res.meta.app_id = msg->meta.app_id;
       res.meta.customer_id = msg->meta.customer_id;
       res.meta.control.cmd = Control::BARRIER;
       for (int r : Postoffice::Get()->GetNodeIDs(group)) {
+        if(r == 1) continue;//gbxu scheduler skip
         int recver_id = r;
         if (shared_node_mapping_.find(r) == shared_node_mapping_.end()) {
           res.meta.recver = recver_id;
@@ -204,7 +207,7 @@ void Van::ProcessBarrierCommand(Message* msg) {
       }
     }
   } else {
-    Postoffice::Get()->Manage(*msg);
+    Postoffice::Get()->Manage(*msg);//scheduler open the barrier
   }
 }
 
@@ -340,11 +343,10 @@ void Van::Start(int customer_id) {
     msg.meta.timestamp = timestamp_++;
     Send(msg);
   }
-  // wait until ready
+    // wait until ready
   while (!ready_.load()) {
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
   }
-
   start_mu_.lock();
   if (init_stage == 1) {//pass by now
     // resender
@@ -437,6 +439,7 @@ void Van::Receiving() {
     } else {
       ProcessDataMsg(&msg);
     }
+
   }
 }
 
@@ -447,6 +450,7 @@ void Van::PackMeta(const Meta& meta, char** meta_buf, int* buf_size) {
   if (meta.app_id != Meta::kEmpty) pb.set_app_id(meta.app_id);
   if (meta.timestamp != Meta::kEmpty) pb.set_timestamp(meta.timestamp);
   if (meta.body.size()) pb.set_body(meta.body);
+  if (meta.sender != Meta::kEmpty) pb.set_sender(meta.sender);//gbxu
   pb.set_push(meta.push);
   pb.set_request(meta.request);
   pb.set_simple_app(meta.simple_app);
@@ -493,6 +497,7 @@ void Van::UnpackMeta(const char* meta_buf, int buf_size, Meta* meta) {
   meta->simple_app = pb.simple_app();
   meta->body = pb.body();
   meta->customer_id = pb.customer_id();
+  meta->sender =  pb.has_sender() ? pb.sender() : Meta::kEmpty;//gbxu
   meta->data_type.resize(pb.data_type_size());
   for (int i = 0; i < pb.data_type_size(); ++i) {
     meta->data_type[i] = static_cast<DataType>(pb.data_type(i));
