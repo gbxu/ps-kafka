@@ -1,7 +1,7 @@
 # Install dependencies
 
 URL=https://raw.githubusercontent.com/mli/deps/master/build
-GBURL=https://github.com/gbxu/deps/blob/master/build
+GBURL=https://raw.githubusercontent.com/gbxu/deps/master/build
 ifndef WGET
 WGET = wget
 endif
