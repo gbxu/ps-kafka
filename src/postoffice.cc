@@ -132,7 +132,7 @@ void Postoffice::Barrier(int customer_id, int node_group) {
   auto role = van_->my_node().role;
   if (role == Node::SCHEDULER) {
     //scheduler should barrier because it is the server provider!!
-    //it should wait for another node TODO!!
+    //it should wait for another node
     CHECK(node_group & kScheduler);
   } else if (role == Node::WORKER) {
     CHECK(node_group & kWorkerGroup);

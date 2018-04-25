@@ -227,7 +227,7 @@ struct Message {
     return ss.str();
   }
 };
-enum Topic { TOWORKERS, TOSERVERS, TOSCHEDULER, NONE};
+enum Topic { TOWORKERS, TOSERVERS, TOSCHEDULER, NONE};//TOWORKERS, TOSERVERS, TOSCHEDULER, NONE
 //gbxu
 //struct TP {
   //  Meta::Topic topic;

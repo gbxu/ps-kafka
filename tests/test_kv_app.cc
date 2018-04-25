@@ -1,6 +1,5 @@
 #include "ps/ps.h"
 using namespace ps;
-/*
 void StartServer() {
   if (!IsServer()) return;
   auto server = new KVServer<float>(0);
@@ -46,9 +45,8 @@ void RunWorker() {
   CHECK_LT(res / repeat, 1e-5);
   LL << "error: " << res / repeat;
 }
-*/
 int main(int argc, char *argv[]) {
-/*
+
   // setup server nodes
   StartServer();
   // start system
@@ -57,6 +55,6 @@ int main(int argc, char *argv[]) {
   RunWorker();
   // stop system
   Finalize(0, true);
-*/
+  printf("kv_app OK\n");
   return 0;
 }

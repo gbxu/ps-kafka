@@ -11,8 +11,7 @@ server_id:8, 10, 12, …
 #ifndef PSKAFKA_DEBUG_H
 #define PSKAFKA_DEBUG_H
 
-#define DEBUGORNOT true
-#define DEBUG(mynode) Debugout(mynode, stream)
+#define DEBUGORNOT false
 #include "ps/internal/van.h"
 
 namespace ps {

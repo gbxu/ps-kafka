@@ -85,7 +85,8 @@ void Van::ProcessAddNodeCommandAtScheduler(
     PS_VLOG(1) << "the scheduler is connected to "
                << num_workers_ << " workers and " << num_servers_ << " servers";
     ready_ = true;
-  } else if (!recovery_nodes->control.node.empty()) {//need to recover
+  } else if (!recovery_nodes->control.node.empty()) {
+    //TODO:need to recover!!! nodes get the wrong id!
     auto dead_nodes = Postoffice::Get()->GetDeadNodes(heartbeat_timeout_);
     std::unordered_set<int> dead_set(dead_nodes.begin(), dead_nodes.end());
     // send back the recovery node
@@ -148,12 +149,17 @@ void Van::UpdateLocalID(Message* msg, std::unordered_set<int>* deadnodes_set,
     if (my_node_.hostname == node.hostname && my_node_.port == node.port) {//gbxu
       if (getenv("DMLC_RANK") == nullptr) {
         my_node_ = node;//update the my_node_.id
+        if(!is_scheduler_){
+          StartConsumer();//wait the consumer or it will loss msg //gbxu
+        }
         std::string rank = std::to_string(Postoffice::IDtoRank(node.id));
 #ifdef _MSC_VER
         _putenv_s("DMLC_RANK", rank.c_str());
 #else
         setenv("DMLC_RANK", rank.c_str(), true);
 #endif
+      }else{
+        //ADD_NODE again!TODO
       }
     }
   }
@@ -178,7 +184,7 @@ void Van::ProcessHearbeat(Message* msg) {
 
 void Van::ProcessBarrierCommand(Message* msg) {
   auto& ctrl = msg->meta.control;
-  if (msg->meta.request) {
+  if (msg->meta.request) {//scheduler counts the number
     if (barrier_count_.empty()) {
       barrier_count_.resize(8, 0);
     }
@@ -186,8 +192,8 @@ void Van::ProcessBarrierCommand(Message* msg) {
     ++barrier_count_[group];
     PS_VLOG(1) << "Barrier count for " << group << " : " << barrier_count_[group];
     if (barrier_count_[group] ==
-        //static_cast<int>(Postoffice::Get()->GetNodeIDs(group).size())) {
-        static_cast<int>(Postoffice::Get()->GetNodeIDs(group).size()-1)) {//gbxu
+        static_cast<int>(Postoffice::Get()->GetNodeIDs(group).size())) {
+        //static_cast<int>(Postoffice::Get()->GetNodeIDs(group).size())-1) {
         barrier_count_[group] = 0;
       Message res;
       res.meta.request = false;
@@ -195,9 +201,6 @@ void Van::ProcessBarrierCommand(Message* msg) {
       res.meta.customer_id = msg->meta.customer_id;
       res.meta.control.cmd = Control::BARRIER;
       for (int r : Postoffice::Get()->GetNodeIDs(group)) {
-        if(r == 1) {
-            continue;//gbxu scheduler skip
-        }
         int recver_id = r;
         if (shared_node_mapping_.find(r) == shared_node_mapping_.end()) {
           res.meta.recver = recver_id;
@@ -305,17 +308,20 @@ void Van::Start(int customer_id) {
     const char *brokers = Environment::Get()->find("BROKERS");
     // todo:remove one of producers?
     if(is_scheduler_) {
-      Connect(brokers,TOSERVERS);//producer
-      Connect(brokers,TOWORKERS);//producer
-      Bind(brokers,TOSCHEDULER);//consumer
+      Connect(brokers,TOSCHEDULER);//producer TOSCHEDULER
+      Connect(brokers,TOSERVERS);//producer TOSERVERS
+      Connect(brokers,TOWORKERS);//producer TOWORKERS
+      Bind(brokers,TOSCHEDULER);//consumer TOSCHEDULER
     }else if(Postoffice::Get()->is_worker()) {
-      Connect(brokers,TOSCHEDULER);//producer
-      Connect(brokers,TOSERVERS);//producer
-      Bind(brokers,TOWORKERS);//consumer
+      Connect(brokers,TOSCHEDULER);//producer TOSCHEDULER
+      Connect(brokers,TOSERVERS);//producer TOSERVERS
+      Connect(brokers,TOWORKERS);//producer TOWORKERS
+      Bind(brokers,TOWORKERS);//consumer TOWORKERS
     } else {
-      Connect(brokers,TOSCHEDULER);//producer
-      Connect(brokers,TOWORKERS);//producer
-      Bind(brokers,TOSERVERS);//consumer
+      Connect(brokers,TOSCHEDULER);//producer TOSCHEDULER
+      Connect(brokers,TOSERVERS);//producer TOSERVERS
+      Connect(brokers,TOWORKERS);//producer TOWORKERS
+      Bind(brokers,TOSERVERS);//consumer TOSERVERS
     }
     // ---]
 
@@ -375,11 +381,13 @@ void Van::Stop() {
   // only customer 0 would call this method
   exit.meta.customer_id = 0;
   // ---[gbxu
-  ProcessTerminateCommand();
-  //int ret = SendMsg(exit);
-  //CHECK_NE(ret, -1);
+
+  //ProcessTerminateCommand();
+  int ret = SendMsg(exit);
+  CHECK_NE(ret, -1);
   // ---]
   receiver_thread_->join();
+
   if (!is_scheduler_) heartbeat_thread_->join();
   if (resender_) delete resender_;
 }

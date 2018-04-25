@@ -96,7 +96,11 @@ class Van {
     //virtual int Bind(const Node &node, int max_retry);
     //virtual int Bind(const Node &node, int max_retry){};
     virtual void Bind(const char *brokers, Topic  tp) = 0;
-
+    /**
+     * \brief bind consumer with the new topic and partition
+     * \return return 0 if success.
+     */
+    virtual int StartConsumer() = 0;
     /**
      * \brief block until received a message
      * \return the number of bytes received. -1 if failed or timeout

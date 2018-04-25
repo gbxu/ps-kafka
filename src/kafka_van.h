@@ -22,23 +22,11 @@ namespace ps {
 const char* TopicToConst(Topic topic){
     switch (topic){
         case TOSCHEDULER:
-            return "TOSCHEDULER";
+            return "TOSCHDULER";//to scheduler
         case TOSERVERS:
-            return  "TOSERVERS";
+            return  "TOSERVERS";// to servers
         case TOWORKERS:
-            return "TOWORKERS";
-        default:
-            return "NONE";
-    }
-}
-char* TopicToChars(Topic topic){
-    switch (topic){
-        case TOSCHEDULER:
-            return "TOSCHEDULER";
-        case TOSERVERS:
-            return  "TOSERVERS";
-        case TOWORKERS:
-            return "TOWORKERS";
+            return "TOWORKERS";//to workers
         default:
             return "NONE";
     }
@@ -72,7 +60,6 @@ protected:
         } else{
             partitions_cnt = 1;
         }
-        consume_toppar_ = std::unordered_map<const char*,std::set<int>>();
     }
 
     void Stop() override {
@@ -114,7 +101,7 @@ protected:
         //consumer
         CHECK_NE(topic, NONE);//empty
         DebugOut debug = DebugOut(my_node_);
-        debug.stream()<<"Bind"<<TopicToChars(topic);
+        debug.stream()<<" Bind "<<TopicToConst(topic);
         debug.Out();
         auto it = consumers_.find(TopicToConst(topic));// null
         if (it != consumers_.end()) {// exists, close the consumer
@@ -153,6 +140,15 @@ protected:
             rd_kafka_destroy(rk);
             return;
         }
+        /* start the consume*/
+        if (rd_kafka_consume_start(rkt,
+                                   0,/*only for the startup*/
+                                   RD_KAFKA_OFFSET_END) == -1){
+            CHECK(0);
+        }
+        //const char* 8byte :TOSCHEDULER can't?
+        consume_toppar_[TopicToConst(topic)].insert(0);
+
         RD rd = {rk, rkt};
         consumers_[TopicToConst(topic)] = rd;
     }
@@ -164,7 +160,7 @@ protected:
         //brokers ip,ip:port,ip:port //default port is 9092
         CHECK_NE(topic, NONE);//empty
         DebugOut tmp = DebugOut(my_node_);
-        tmp.stream()<<"Connect:"<<TopicToChars(topic);
+        tmp.stream()<<" Connect: "<<TopicToConst(topic);
         tmp.Out();
         auto it = producers_.find(TopicToConst(topic));// null
         if (it != producers_.end()) {// exists, close the producer
@@ -273,9 +269,9 @@ protected:
         }
         //Debug: send meta message
         DebugOut debug = DebugOut(my_node_);
-        debug.stream()<<"sendmsg:"<<TopicToConst(topic)<<partition \
-                        <<":"<<msg.meta.control.DebugString() \
-                        <<"size :"<<meta_size;
+        debug.stream()<<" sendmsg:"<<TopicToConst(topic)<<partition \
+                        <<" :"<<msg.meta.control.DebugString() \
+                        <<" size :"<<meta_size;
         debug.Out();
 
         rd_kafka_poll(rk, 0/*non-blocking*/);
@@ -320,16 +316,45 @@ protected:
         }
         return send_bytes;
     }
+    int StartConsumer(){
+        if (my_node_.id == Node::kEmpty){
+            CHECK(0);//only call it when id assigned
+        }
 
+        Topic topic = Postoffice::IDtoTopic(my_node_.id);
+        int partition = Postoffice::IDtoPartition(my_node_.id);//rank+1 or 0
+
+        auto it = consumers_.find(TopicToConst(topic));
+        if (it == consumers_.end()) {
+            CHECK(0);
+        }
+        RD rd = it->second;
+        rd_kafka_t *rk = rd.rk;
+        rd_kafka_topic_t *rkt = rd.rkt;
+
+        auto it_tp = consume_toppar_.find(TopicToConst(topic));
+        if(it_tp == consume_toppar_.end() ||
+           it_tp->second.find(partition) == it_tp->second.end()){
+            if (rd_kafka_consume_start(rkt,
+                                       partition,
+                                       RD_KAFKA_OFFSET_END) == -1){
+                CHECK(0);
+            }
+            consume_toppar_[TopicToConst(topic)].insert(partition);
+        }
+        sleep(3);
+        return 0;
+    }
     int RecvMsg(Message* msg) override {
         msg->data.clear();
         size_t recv_bytes = 0;
         // find the consumer
-        std::unordered_map<const char*, RD>::iterator it;
-        int partition;
+
+        /* topic partition and RD */
+        int curr_partition;
         Topic topic;
         if (my_node_.id == Node::kEmpty){
-            partition = 0;//only once for the startup
+            curr_partition = 0;//only for the startup
             if(Postoffice::Get()->is_worker()){
                 topic = TOWORKERS;
             } else if (Postoffice::Get()->is_server()){
@@ -339,10 +364,9 @@ protected:
             }
         } else{
             topic = Postoffice::IDtoTopic(my_node_.id);
-            partition = Postoffice::IDtoPartition(my_node_.id);//rank+1 or 0
+            curr_partition = Postoffice::IDtoPartition(my_node_.id);//rank+1 or 0
         }
-        it = consumers_.find(TopicToConst(topic));
-
+        auto it = consumers_.find(TopicToConst(topic));
         if (it == consumers_.end()) {
             CHECK(0);
         }
@@ -351,26 +375,18 @@ protected:
         rd_kafka_topic_t *rkt = rd.rkt;
 
         /* Start consuming only once for the same topic and partition*/
-
-        std::unordered_map<const char*,std::set<int>>::iterator it_tp
-                = consume_toppar_.find(TopicToConst(topic));
-        if(it_tp == consume_toppar_.end()){
+        auto it_tp = consume_toppar_.find(TopicToConst(topic));
+        if(it_tp == consume_toppar_.end() ||
+           it_tp->second.find(curr_partition) == it_tp->second.end()){
             if (rd_kafka_consume_start(rkt,
-                                       partition,
+                                       curr_partition,
                                        RD_KAFKA_OFFSET_END) == -1){
                 CHECK(0);
             }
-            std::set<int> par_set =std::set<int>();
-            par_set.insert(partition);
-            consume_toppar_[TopicToConst(topic)] = par_set;
-        } else if(it_tp->second.find(partition) == it_tp->second.end()){
-            if (rd_kafka_consume_start(rkt,
-                                       partition,
-                                       RD_KAFKA_OFFSET_END) == -1){
-                CHECK(0);
-            }
-            consume_toppar_[TopicToConst(topic)].insert(partition);
+            //const char* 8byte :TOSCHEDULER can't
+            consume_toppar_[TopicToConst(topic)].insert(curr_partition);
         }
+        /*---------------*/
         for (int i = 0; ; ++i) {
             rd_kafka_message_t *rkmessage;
             rd_kafka_resp_err_t err;
@@ -382,7 +398,7 @@ protected:
              * See rdkafka_performance.c for high speed
              * consuming of messages. */
             while(1){
-                rkmessage = rd_kafka_consume(rkt, partition, 1000);//block:not time out 1000ms
+                rkmessage = rd_kafka_consume(rkt, curr_partition, 1000);//block:not time out 1000ms
                 if(!rkmessage){
                     continue;
                 } else if(rkmessage->err){
@@ -406,9 +422,9 @@ protected:
                 rd_kafka_message_destroy(rkmessage);
 
                 DebugOut debug = DebugOut(my_node_);
-                debug.stream()<<"recvmsg from"<<TopicToConst(topic)<<partition \
-                            <<":"<<msg->meta.control.DebugString() \
-                            <<" size:"<<size<<" meta:"<<msg->meta.DebugString();
+                debug.stream()<<" recvmsg from "<<TopicToConst(topic)<<curr_partition \
+                            <<" :"<<msg->meta.control.DebugString() \
+                            <<" size:"<<size;
                 debug.Out();
                 if (tmp[0] == 'f') break;
             } else {
@@ -420,9 +436,9 @@ protected:
                 msg->data.push_back(data);
 
                 DebugOut debug = DebugOut(my_node_);
-                debug.stream()<<"2recvmsg from"<<TopicToConst(topic)<<partition \
-                            <<":"<<msg->meta.control.DebugString() \
-                            <<" size:"<<size<<" meta:"<<msg->meta.DebugString();
+                debug.stream()<<" 2recvmsg from "<<TopicToConst(topic)<<curr_partition \
+                            <<" :"<<msg->meta.control.DebugString() \
+                            <<" size:"<<size;
                 debug.Out();
 
                 if (tmp[0] == 'f') break;
