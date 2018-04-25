@@ -12,6 +12,7 @@
 #include "ps/internal/van.h"
 #include <librdkafka/rdkafka.h>
 #include "ps/debug.h"
+#include <set>
 #if _MSC_VER
 #define rand_r(x) rand()
 #endif
@@ -66,11 +67,12 @@ protected:
         Van::Start(customer_id);
         if(my_node_.role == Node::WORKER){
             partitions_cnt = Postoffice::Get()->num_workers()+1;//consumer partitions
-        } else if(my_node_.role = Node::SERVER){
+        } else if(my_node_.role == Node::SERVER){//lose one =... waste my time..
             partitions_cnt = Postoffice::Get()->num_servers()+1;
         } else{
             partitions_cnt = 1;
         }
+        consume_toppar_ = std::unordered_map<const char*,std::set<int>>();
     }
 
     void Stop() override {
@@ -216,6 +218,9 @@ protected:
         //CHECK_NE(partition, kEmpty);
         auto it = producers_.find(TopicToConst(topic));
         if (it == producers_.end()) {
+            DebugOut debug = DebugOut(my_node_);
+            debug.stream()<<" scheduler:"<<Postoffice::Get()->is_scheduler()<<" "<<" cant find:"<<TopicToConst(topic)<<partition;
+            debug.Out();
             return -1;
         }
         RD rd = it->second;
@@ -224,11 +229,6 @@ protected:
         // send meta
         int meta_size; char* meta_buf;
         PackMeta(msg.meta, &meta_buf, &meta_size);
-        DebugOut debug = DebugOut(my_node_);
-        debug.stream()<<"sendmsg:"<<TopicToConst(topic)<<partition \
-                        <<":"<<msg.meta.control.DebugString() \
-                        <<"size :"<<meta_size;
-        debug.Out();
         int n = msg.data.size();
         if(n == 0){
             retry0:
@@ -255,6 +255,7 @@ protected:
                     goto retry0;
                 }
             }
+
         }else{
             retry1:
             if(rd_kafka_produce(rkt,
@@ -270,6 +271,13 @@ protected:
                 }
             }
         }
+        //Debug: send meta message
+        DebugOut debug = DebugOut(my_node_);
+        debug.stream()<<"sendmsg:"<<TopicToConst(topic)<<partition \
+                        <<":"<<msg.meta.control.DebugString() \
+                        <<"size :"<<meta_size;
+        debug.Out();
+
         rd_kafka_poll(rk, 0/*non-blocking*/);
         int send_bytes = meta_size;
         // send data
@@ -342,13 +350,27 @@ protected:
         rd_kafka_t *rk = rd.rk;
         rd_kafka_topic_t *rkt = rd.rkt;
 
-        /* Start consuming */
-        if (rd_kafka_consume_start(rkt,
-                                   partition,
-                                   RD_KAFKA_OFFSET_END) == -1){
-            CHECK(0);
-        }
+        /* Start consuming only once for the same topic and partition*/
 
+        std::unordered_map<const char*,std::set<int>>::iterator it_tp
+                = consume_toppar_.find(TopicToConst(topic));
+        if(it_tp == consume_toppar_.end()){
+            if (rd_kafka_consume_start(rkt,
+                                       partition,
+                                       RD_KAFKA_OFFSET_END) == -1){
+                CHECK(0);
+            }
+            std::set<int> par_set =std::set<int>();
+            par_set.insert(partition);
+            consume_toppar_[TopicToConst(topic)] = par_set;
+        } else if(it_tp->second.find(partition) == it_tp->second.end()){
+            if (rd_kafka_consume_start(rkt,
+                                       partition,
+                                       RD_KAFKA_OFFSET_END) == -1){
+                CHECK(0);
+            }
+            consume_toppar_[TopicToConst(topic)].insert(partition);
+        }
         for (int i = 0; ; ++i) {
             rd_kafka_message_t *rkmessage;
             rd_kafka_resp_err_t err;
@@ -388,7 +410,7 @@ protected:
                             <<":"<<msg->meta.control.DebugString() \
                             <<" size:"<<size<<" meta:"<<msg->meta.DebugString();
                 debug.Out();
-                if (*tmp == 'f') break;
+                if (tmp[0] == 'f') break;
             } else {
                 // zero-copy
                 SArray<char> data;
@@ -403,7 +425,7 @@ protected:
                             <<" size:"<<size<<" meta:"<<msg->meta.DebugString();
                 debug.Out();
 
-                if (*tmp == 'f') break;
+                if (tmp[0] == 'f') break;
             }
         }
         return recv_bytes;
@@ -416,6 +438,7 @@ private:
     std::unordered_map<const char*, RD> producers_;
     std::unordered_map<const char*, RD> consumers_;
     std::mutex mu_;
+    std::unordered_map<const char*,std::set<int>> consume_toppar_;
     int partitions_cnt;
 };
 }  // namespace ps

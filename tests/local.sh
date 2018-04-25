@@ -15,6 +15,7 @@ arg="$@"
 
 # start the scheduler
 export BROKERS='localhost:9092'
+
 export DMLC_PS_ROOT_URI='127.0.0.1'
 export DMLC_PS_ROOT_PORT=8000
 export DMLC_ROLE='scheduler'
@@ -22,6 +23,8 @@ ${bin} ${arg} &
 
 
 # start servers
+export DMLC_NODE_HOST='127.0.0.1'
+
 export DMLC_ROLE='server'
 for ((i=0; i<${DMLC_NUM_SERVER}; ++i)); do
     export HEAPPROFILE=./S${i}
@@ -29,6 +32,8 @@ for ((i=0; i<${DMLC_NUM_SERVER}; ++i)); do
 done
 
 # start workers
+export DMLC_NODE_HOST='127.0.0.1'
+
 export DMLC_ROLE='worker'
 for ((i=0; i<${DMLC_NUM_WORKER}; ++i)); do
     export HEAPPROFILE=./W${i}

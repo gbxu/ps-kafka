@@ -73,9 +73,9 @@ struct Node {
   /** \brief get debug string */
   std::string DebugString() const {
     std::stringstream ss;
-    ss << "role=" << (role == SERVER ? "server" : (role == WORKER ? "worker" : "scheduler"))
+    ss << "role=" << (role == SERVER ? "SERVER" : (role == WORKER ? "WORKER" : "SCHEDULER"))
        << (id != kEmpty ? ", id=" + std::to_string(id) : "")
-       << ", ip=" << hostname/* << ", port=" << port */<< ", is_recovery=" << is_recovery;
+       << ", ip=" << hostname << ", port=" << port << ", is_recovery=" << is_recovery;
 
     return ss.str();
   }

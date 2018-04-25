@@ -7,8 +7,8 @@ int main(int argc, char *argv[]) {
   //Postoffice::Start() // van_->Start(customer_id);
   // Barrier()
   // do nothing
-  printf("connect OK");
-  ps::Finalize(0, true);
+  printf("add node and barrier OK");
+  //ps::Finalize(0, true);
 
   return 0;
 }

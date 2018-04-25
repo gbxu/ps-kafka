@@ -1,7 +1,13 @@
 //
 // Created by gbxu on 18-4-24.
 //
-
+/*
+scheduler：1
+servergroup：2
+workergroup：4
+worker_id:9, 11, 13, …
+server_id:8, 10, 12, …
+ */
 #ifndef PSKAFKA_DEBUG_H
 #define PSKAFKA_DEBUG_H
 
@@ -14,14 +20,7 @@ namespace ps {
 class DebugOut {
 public:
     DebugOut(Node mynode) {
-        std::string tmp;
-        if(mynode.id == Node::kEmpty){
-            tmp = "empty";
-        } else {
-            tmp = std::to_string(mynode.id);
-        }
-        log_stream_<<mynode.DebugString().c_str() \
-        <<"id is " << tmp <<" ";
+        log_stream_<<mynode.DebugString().c_str();
     }
     std::ostringstream &stream() {
         return log_stream_;

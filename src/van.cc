@@ -49,12 +49,12 @@ void Van::ProcessAddNodeCommandAtScheduler(
               });
     // assign node rank
     for (auto& node : nodes->control.node) {
-      std::string node_host_ip = node.hostname;
+      std::string node_host_ip = node.hostname + ":" + std::to_string(node.port);
       if (connected_nodes_.find(node_host_ip) == connected_nodes_.end()) {// new node
         CHECK_EQ(node.id, Node::kEmpty);
         int id = node.role == Node::SERVER ?
                  Postoffice::ServerRankToID(num_servers_) :
-                 Postoffice::WorkerRankToID(num_workers_);
+                 Postoffice::WorkerRankToID(num_workers_);// new id?
         PS_VLOG(1) << "assign rank=" << id << " to node " << node.DebugString();
         node.id = id;
         //Connect(node); //gbxu
@@ -63,7 +63,7 @@ void Van::ProcessAddNodeCommandAtScheduler(
       } else {
         int id = node.role == Node::SERVER ?
                  Postoffice::ServerRankToID(num_servers_) :
-                 Postoffice::WorkerRankToID(num_workers_);
+                 Postoffice::WorkerRankToID(num_workers_);// new id?
         shared_node_mapping_[id] = connected_nodes_[node_host_ip];
         node.id = connected_nodes_[node_host_ip];
       }
@@ -142,14 +142,12 @@ void Van::UpdateLocalID(Message* msg, std::unordered_set<int>* deadnodes_set,
       }
     }
   }
-
   // update my id
   for (size_t i = 0; i < ctrl.node.size(); ++i) {
     const auto& node = ctrl.node[i];
     if (my_node_.hostname == node.hostname && my_node_.port == node.port) {//gbxu
       if (getenv("DMLC_RANK") == nullptr) {
         my_node_ = node;//update the my_node_.id
-
         std::string rank = std::to_string(Postoffice::IDtoRank(node.id));
 #ifdef _MSC_VER
         _putenv_s("DMLC_RANK", rank.c_str());
@@ -197,7 +195,9 @@ void Van::ProcessBarrierCommand(Message* msg) {
       res.meta.customer_id = msg->meta.customer_id;
       res.meta.control.cmd = Control::BARRIER;
       for (int r : Postoffice::Get()->GetNodeIDs(group)) {
-        if(r == 1) continue;//gbxu scheduler skip
+        if(r == 1) {
+            continue;//gbxu scheduler skip
+        }
         int recver_id = r;
         if (shared_node_mapping_.find(r) == shared_node_mapping_.end()) {
           res.meta.recver = recver_id;
@@ -265,8 +265,7 @@ void Van::Start(int customer_id) {
     if (is_scheduler_) {
       my_node_ = scheduler_;
     } else {
-      auto role = is_scheduler_ ? Node::SCHEDULER :
-                  (Postoffice::Get()->is_worker() ? Node::WORKER : Node::SERVER);
+      auto role = Postoffice::Get()->is_worker() ? Node::WORKER : Node::SERVER;
       const char *nhost = Environment::Get()->find("DMLC_NODE_HOST");
       std::string ip;
       if (nhost) ip = std::string(nhost);
@@ -292,7 +291,6 @@ void Van::Start(int customer_id) {
       // cannot determine my id now, the scheduler will assign it later
       // set it explicitly to make re-register within a same process possible
       my_node_.id = Node::kEmpty;
-      my_node_.customer_id = customer_id;
     }
 
     /* -[gbxu
@@ -332,6 +330,7 @@ void Van::Start(int customer_id) {
   }
   start_mu_.unlock();
 
+  sleep(3);//wait for receiving gbxu
   if (!is_scheduler_) {
     // let the scheduler know myself
     Message msg;
@@ -526,6 +525,9 @@ void Van::UnpackMeta(const char* meta_buf, int buf_size, Meta* meta) {
 void Van::Heartbeat() {
   const char* val = Environment::Get()->find("PS_HEARTBEAT_INTERVAL");
   const int interval = val ? atoi(val) : kDefaultHeartbeatInterval;
+  if(interval){
+      printf("start the heartbear\n\n");
+  }
   while (interval > 0 && ready_.load()) {
     std::this_thread::sleep_for(std::chrono::seconds(interval));
     Message msg;

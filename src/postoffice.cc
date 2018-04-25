@@ -7,7 +7,7 @@
 #include "ps/internal/postoffice.h"
 #include "ps/internal/message.h"
 #include "ps/base.h"
-
+#include "ps/debug.h"
 namespace ps {
 Postoffice::Postoffice() {
   //van_ = Van::Create("zmq");
@@ -131,8 +131,9 @@ void Postoffice::Barrier(int customer_id, int node_group) {
   if (GetNodeIDs(node_group).size() <= 1) return;
   auto role = van_->my_node().role;
   if (role == Node::SCHEDULER) {
-    return;
-    //CHECK(node_group & kScheduler);
+    //scheduler should barrier because it is the server provider!!
+    //it should wait for another node TODO!!
+    CHECK(node_group & kScheduler);
   } else if (role == Node::WORKER) {
     CHECK(node_group & kWorkerGroup);
   } else if (role == Node::SERVER) {
