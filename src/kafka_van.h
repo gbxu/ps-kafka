@@ -98,12 +98,14 @@ protected:
     }
 
     void Bind(const char *brokers, Topic topic) override {
+        currConsumerTopic = topic;
+        currConsumerPartition = 0;
         //consumer
-        CHECK_NE(topic, NONE);//empty
+        CHECK_NE(currConsumerTopic, NONE);//empty
         DebugOut debug = DebugOut(my_node_);
-        debug.stream()<<" Bind "<<TopicToConst(topic);
+        debug.stream()<<" Bind "<<TopicToConst(currConsumerTopic);
         debug.Out();
-        auto it = consumers_.find(TopicToConst(topic));// null
+        auto it = consumers_.find(TopicToConst(currConsumerTopic));// null
         if (it != consumers_.end()) {// exists, close the consumer
             RD rd = it->second;
             rd_kafka_t *rk = rd.rk;
@@ -116,41 +118,29 @@ protected:
         //conf
         char errstr[512];
         rd_kafka_conf_t *conf = rd_kafka_conf_new();
-        //when scheduler assign the id,
-        // each node should get only one (consumer group 0)
         rd_kafka_conf_set(conf, "group.id", "0",
-                          errstr, sizeof(errstr));
+                          errstr, sizeof(errstr));// dont need the group.id now
         //consumer
         rd_kafka_t *rk = rd_kafka_new(RD_KAFKA_CONSUMER, conf, errstr, sizeof(errstr));
         if (!rk) {
-            fprintf(stderr,
-                    "%% Failed to create new consumer: %s\n", errstr);
-            return;
+            CHECK(0)<<" Failed to create new consumer:"<<errstr;
         }
         /* Add brokers */
         if (rd_kafka_brokers_add(rk, brokers) == 0) {
-            fprintf(stderr, "%% No valid brokers specified\n");
-            exit(1);
+            CHECK(0)<<"No valid brokers specified";
         }
         //topic
-        rd_kafka_topic_t *rkt = rd_kafka_topic_new(rk, TopicToConst(topic), NULL);
+        rd_kafka_topic_t *rkt = rd_kafka_topic_new(rk, TopicToConst(currConsumerTopic), NULL);
         if (!rkt) {
-            fprintf(stderr, "%% Failed to create topic object: %s\n",
-                    rd_kafka_err2str(rd_kafka_last_error()));
             rd_kafka_destroy(rk);
-            return;
+            CHECK(0)<<" Failed to create topic object:"<<rd_kafka_err2str(rd_kafka_last_error());
         }
         /* start the consume*/
-        if (rd_kafka_consume_start(rkt,
-                                   0,/*only for the startup*/
-                                   RD_KAFKA_OFFSET_END) == -1){
-            CHECK(0);
-        }
-        //const char* 8byte :TOSCHEDULER can't?
-        consume_toppar_[TopicToConst(topic)].insert(0);
-
         RD rd = {rk, rkt};
-        consumers_[TopicToConst(topic)] = rd;
+        consumers_[TopicToConst(currConsumerTopic)] = rd;
+
+        StartConsumer();
+
     }
 
     void Connect(const char *brokers, Topic topic) override {
@@ -317,75 +307,48 @@ protected:
         return send_bytes;
     }
     int StartConsumer(){
-        if (my_node_.id == Node::kEmpty){
-            CHECK(0);//only call it when id assigned
+        if (my_node_.id != Node::kEmpty){
+            //currConsumerTopic = topic when Bind()
+            //currConsumerPartition = 0 when Bind()
+
+            currConsumerTopic = Postoffice::IDtoTopic(my_node_.id);
+            currConsumerPartition = Postoffice::IDtoPartition(my_node_.id);//rank+1 or 0
         }
-
-        Topic topic = Postoffice::IDtoTopic(my_node_.id);
-        int partition = Postoffice::IDtoPartition(my_node_.id);//rank+1 or 0
-
-        auto it = consumers_.find(TopicToConst(topic));
+        /* find RD */
+        //check
+        auto it = consumers_.find(TopicToConst(currConsumerTopic));
         if (it == consumers_.end()) {
             CHECK(0);
         }
         RD rd = it->second;
         rd_kafka_t *rk = rd.rk;
         rd_kafka_topic_t *rkt = rd.rkt;
-
-        auto it_tp = consume_toppar_.find(TopicToConst(topic));
+        /* find topic partition */
+        //check
+        auto it_tp = consume_toppar_.find(TopicToConst(currConsumerTopic));
         if(it_tp == consume_toppar_.end() ||
-           it_tp->second.find(partition) == it_tp->second.end()){
+           it_tp->second.find(currConsumerPartition) == it_tp->second.end()){
+            //consume start
             if (rd_kafka_consume_start(rkt,
-                                       partition,
+                                       currConsumerPartition,
                                        RD_KAFKA_OFFSET_END) == -1){
                 CHECK(0);
             }
-            consume_toppar_[TopicToConst(topic)].insert(partition);
+            consume_toppar_[TopicToConst(currConsumerTopic)].insert(currConsumerPartition);
         }
-        sleep(3);
         return 0;
     }
     int RecvMsg(Message* msg) override {
         msg->data.clear();
         size_t recv_bytes = 0;
-        // find the consumer
-
-        /* topic partition and RD */
-        int curr_partition;
-        Topic topic;
-        if (my_node_.id == Node::kEmpty){
-            curr_partition = 0;//only for the startup
-            if(Postoffice::Get()->is_worker()){
-                topic = TOWORKERS;
-            } else if (Postoffice::Get()->is_server()){
-                topic = TOSERVERS;
-            } else{
-              CHECK(0);
-            }
-        } else{
-            topic = Postoffice::IDtoTopic(my_node_.id);
-            curr_partition = Postoffice::IDtoPartition(my_node_.id);//rank+1 or 0
-        }
-        auto it = consumers_.find(TopicToConst(topic));
+        /* RD */
+        auto it = consumers_.find(TopicToConst(currConsumerTopic));
         if (it == consumers_.end()) {
             CHECK(0);
         }
         RD rd = it->second;
         rd_kafka_t *rk = rd.rk;
         rd_kafka_topic_t *rkt = rd.rkt;
-
-        /* Start consuming only once for the same topic and partition*/
-        auto it_tp = consume_toppar_.find(TopicToConst(topic));
-        if(it_tp == consume_toppar_.end() ||
-           it_tp->second.find(curr_partition) == it_tp->second.end()){
-            if (rd_kafka_consume_start(rkt,
-                                       curr_partition,
-                                       RD_KAFKA_OFFSET_END) == -1){
-                CHECK(0);
-            }
-            //const char* 8byte :TOSCHEDULER can't
-            consume_toppar_[TopicToConst(topic)].insert(curr_partition);
-        }
         /*---------------*/
         for (int i = 0; ; ++i) {
             rd_kafka_message_t *rkmessage;
@@ -398,7 +361,7 @@ protected:
              * See rdkafka_performance.c for high speed
              * consuming of messages. */
             while(1){
-                rkmessage = rd_kafka_consume(rkt, curr_partition, 1000);//block:not time out 1000ms
+                rkmessage = rd_kafka_consume(rkt, currConsumerPartition, 1000);//block:not time out 1000ms
                 if(!rkmessage){
                     continue;
                 } else if(rkmessage->err){
@@ -422,7 +385,8 @@ protected:
                 rd_kafka_message_destroy(rkmessage);
 
                 DebugOut debug = DebugOut(my_node_);
-                debug.stream()<<" recvmsg from "<<TopicToConst(topic)<<curr_partition \
+                debug.stream()<<" recvmsg from "<<TopicToConst(currConsumerTopic) \
+                            <<currConsumerPartition \
                             <<" :"<<msg->meta.control.DebugString() \
                             <<" size:"<<size;
                 debug.Out();
@@ -436,7 +400,8 @@ protected:
                 msg->data.push_back(data);
 
                 DebugOut debug = DebugOut(my_node_);
-                debug.stream()<<" 2recvmsg from "<<TopicToConst(topic)<<curr_partition \
+                debug.stream()<<" 2recvmsg from "<<TopicToConst(currConsumerTopic) \
+                            <<currConsumerPartition \
                             <<" :"<<msg->meta.control.DebugString() \
                             <<" size:"<<size;
                 debug.Out();
@@ -456,6 +421,8 @@ private:
     std::mutex mu_;
     std::unordered_map<const char*,std::set<int>> consume_toppar_;
     int partitions_cnt;
+    Topic currConsumerTopic;
+    int currConsumerPartition;
 };
 }  // namespace ps
 #endif //PSLITE_KAFKA_VAN_H_
