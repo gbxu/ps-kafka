@@ -70,7 +70,6 @@ void Van::ProcessAddNodeCommandAtScheduler(
       if (node.role == Node::SERVER) num_servers_++;
       if (node.role == Node::WORKER) num_workers_++;
     }
-    //TODO:!!!
     nodes->control.node.push_back(my_node_);
     nodes->control.cmd = Control::ADD_NODE;
     Message back;
@@ -87,7 +86,7 @@ void Van::ProcessAddNodeCommandAtScheduler(
                << num_workers_ << " workers and " << num_servers_ << " servers";
     ready_ = true;
   } else if (!recovery_nodes->control.node.empty()) {
-    //TODO:need to recover!!! nodes get the wrong id!
+    //TODO:need to recover?
     auto dead_nodes = Postoffice::Get()->GetDeadNodes(heartbeat_timeout_);
     std::unordered_set<int> dead_set(dead_nodes.begin(), dead_nodes.end());
     // send back the recovery node
@@ -151,9 +150,8 @@ void Van::UpdateLocalID(Message* msg, std::unordered_set<int>* deadnodes_set,
       if (getenv("DMLC_RANK") == nullptr) {
         my_node_ = node;//update the my_node_.id
         if(!is_scheduler_){
-            printf("update partitions\n");
           StartConsumer();//wait the consumer, or it will loss msg //gbxu
-          sleep(5);
+          sleep(1);//TODO:optimization?
         }
         std::string rank = std::to_string(Postoffice::IDtoRank(node.id));
 #ifdef _MSC_VER
@@ -161,8 +159,6 @@ void Van::UpdateLocalID(Message* msg, std::unordered_set<int>* deadnodes_set,
 #else
         setenv("DMLC_RANK", rank.c_str(), true);
 #endif
-      }else{
-        //ADD_NODE again!TODO
       }
     }
   }
@@ -193,7 +189,6 @@ void Van::ProcessBarrierCommand(Message* msg) {
     }
     int group = ctrl.barrier_group;
     ++barrier_count_[group];
-    printf("count:%d\n",barrier_count_[group]);
     PS_VLOG(1) << "Barrier count for " << group << " : " << barrier_count_[group];
     if (barrier_count_[group] ==
         static_cast<int>(Postoffice::Get()->GetNodeIDs(group).size())) {
@@ -254,7 +249,9 @@ void Van::ProcessAddNodeCommand(Message* msg, Meta* nodes, Meta* recovery_nodes)
       if (!node.is_recovery && node.role == Node::WORKER) ++num_workers_;
     }
     PS_VLOG(1) << my_node_.ShortDebugString() << " is connected to others";
-    ready_ = true;
+    if(my_node_.id != Node::kEmpty){
+      ready_ = true;//wait until UpdateLocalID() get my_node_ id!
+    }
   }
 }
 
@@ -310,7 +307,6 @@ void Van::Start(int customer_id) {
      -]*/
     // ---[gbxy
     const char *brokers = Environment::Get()->find("BROKERS");
-    // todo:remove one of producers?
     Connect(brokers,TOSCHEDULER);//producer TOSCHEDULER
     Connect(brokers,TOSERVERS);//producer TOSERVERS
     Connect(brokers,TOWORKERS);//producer TOWORKERS
@@ -334,7 +330,7 @@ void Van::Start(int customer_id) {
   }
   start_mu_.unlock();
 
-  sleep(3);//wait for receiving gbxu
+  sleep(1);//wait for receiving gbxu TODO:optimization??
   if (!is_scheduler_) {
     // let the scheduler know myself
     Message msg;

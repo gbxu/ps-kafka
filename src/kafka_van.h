@@ -35,13 +35,6 @@ struct RD {
     rd_kafka_t *rk;//producer/consumer object
     rd_kafka_topic_t *rkt;//topic object
 };
-static void dr_msg_cb (rd_kafka_t *rk,
-                       const rd_kafka_message_t *rkmessage, void *opaque) {
-    if (rkmessage->err)
-        CHECK(0);
-    /* The rkmessage is destroyed automatically by librdkafka */
-}
-
 /**
  * \brief KAFKA based implementation
  */
@@ -118,8 +111,7 @@ protected:
         //conf
         char errstr[512];
         rd_kafka_conf_t *conf = rd_kafka_conf_new();
-        rd_kafka_conf_set(conf, "group.id", "0",
-                          errstr, sizeof(errstr));// dont need the group.id now
+        //rd_kafka_conf_set(conf, "group.id", "0", errstr, sizeof(errstr));// dont need the group.id now
         //consumer
         rd_kafka_t *rk = rd_kafka_new(RD_KAFKA_CONSUMER, conf, errstr, sizeof(errstr));
         if (!rk) {
@@ -166,7 +158,6 @@ protected:
         //conf
         char errstr[512];
         rd_kafka_conf_t *conf = rd_kafka_conf_new();
-        rd_kafka_conf_set_dr_msg_cb(conf, dr_msg_cb);
         //producer
         rd_kafka_t *rk = rd_kafka_new(RD_KAFKA_PRODUCER, conf, errstr, sizeof(errstr));
         if (!rk) {
