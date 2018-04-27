@@ -29,12 +29,31 @@ ${RDKAFKA}:
 
 #cyrus-sasl
 ${Cyrus-SASL}:
-    $(eval FILE=cyrus-sasl-2.1.21.tar.gz)
-    $(eval DIR=rdkafka)
-    rm -rf $(FILE) $(DIR)
-    $(WGET) http://ftp.andrew.cmu.edu/pub/cyrus-mail/$(FILE) && tar --no-same-owner -zxf $(FILE)
-    cd $(DIR) && ./configure --prefix=$(DEPS_PATH) && $(MAKE) && $(MAKE) install
-    rm -rf $(FILE) $(DIR)
+	$(eval FILE=cyrus-sasl-2.1.21.tar.gz)
+	$(eval DIR=cyrus-sasl-2.1.21)
+	rm -rf $(FILE) $(DIR)
+	$(WGET) $(GBURL)/$(FILE) && tar --no-same-owner -zxf $(FILE)
+	cd $(DIR) && ./configure --prefix=$(DEPS_PATH) && $(MAKE) && $(MAKE) install
+	rm -rf $(FILE) $(DIR)
+
+#openssl-1.0.2o
+${openssl-1.0.2o}:
+	$(eval FILE=openssl-1.0.2o.tar.gz)
+	$(eval DIR=openssl-1.0.2o)
+	rm -rf $(FILE) $(DIR)
+	$(WGET) $(GBURL)/$(FILE) && tar --no-same-owner -zxf $(FILE)
+	cd $(DIR) && ./Configure --prefix=$(DEPS_PATH) && $(MAKE) && $(MAKE) install
+	rm -rf $(FILE) $(DIR)
+
+#zlib-1.2.11
+${zlib-1.2.11}:
+	$(eval FILE=zlib-1.2.11.tar.gz)
+	$(eval DIR=zlib-1.2.11)
+	rm -rf $(FILE) $(DIR)
+	$(WGET) $(GBURL)/$(FILE) && tar --no-same-owner -zxf $(FILE)
+	cd $(DIR) && ./Configure --prefix=$(DEPS_PATH) && $(MAKE) && $(MAKE) install
+	rm -rf $(FILE) $(DIR)
+
 
 # lz4
 LZ4 = ${DEPS_PATH}/include/lz4.h
