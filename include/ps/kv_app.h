@@ -187,13 +187,13 @@ class KVWorker : public SimpleApp {
     kvs.vals = vals;
     kvs.lens = lens;
 
-    printf("push\n");
-    for(auto k:kvs.keys) {
-      printf("key:%d ",k);
-    }
-    printf("\n");
-    for(auto v:kvs.vals) printf("%lf ",v);
-    printf("\n");
+//    printf("push\n");
+//    for(auto k:kvs.keys) {
+//      printf("key:%d ",k);
+//    }
+//    printf("\n");
+//    for(auto v:kvs.vals) printf("%lf ",v);
+//    printf("\n");
 
     Send(ts, true, cmd, kvs);
     return ts;
@@ -394,14 +394,14 @@ void KVServer<Val>::Process(const Message& msg) {
       CHECK_EQ(data.lens.size(), data.keys.size());
     }
   }
-  printf("server process:\n");
-  for(auto it:data.keys){
-      printf("%d ",it);
-  }
-    for(auto it:data.vals){
-        printf(" %f ",it);
-    }
-    printf("\n");
+//  printf("server process:\n");
+//  for(auto it:data.keys){
+//      printf("%d ",it);
+//  }
+//    for(auto it:data.vals){
+//        printf(" %f ",it);
+//    }
+//    printf("\n");
 
   CHECK(request_handle_);
   request_handle_(meta, data, this);
@@ -417,17 +417,17 @@ void KVServer<Val>::Response(const KVMeta& req, const KVPairs<Val>& res) {
   msg.meta.head        = req.cmd;
   msg.meta.timestamp   = req.timestamp;
   msg.meta.recver      = req.sender;
-    printf("response:");
-    printf("keys:");
-  for(auto it:res.keys){
-      printf("%d ",it);
-  }
-    printf("\n");
-    printf("value:");
-    for(auto it:res.vals){
-        printf("%f ",it);
-    }
-    printf("\nresponse ending \n");
+//    printf("response:");
+//    printf("keys:");
+//  for(auto it:res.keys){
+//      printf("%d ",it);
+//  }
+//    printf("\n");
+//    printf("value:");
+//    for(auto it:res.vals){
+//        printf("%f ",it);
+//    }
+//    printf("\nresponse ending \n");
 
   if (res.keys.size()) {
     msg.AddData(res.keys);
@@ -463,7 +463,6 @@ void KVWorker<Val>::DefaultSlicer(
 
     // don't send it to servers for empty kv
     sliced->at(i).first = (len != 0);
-    printf("len:%d\n",len);
   }
   CHECK_EQ(pos[n], send.keys.size());
   if (send.keys.empty()) return;
@@ -553,11 +552,11 @@ void KVWorker<Val>::Process(const Message& msg) {
     if (msg.data.size() > (size_t)2) {
       kvs.lens = msg.data[2];
     }
-    printf("kvworker process keys:");
-    for(auto it:kvs.keys){
-        printf("%d ",it);
-    }
-    printf("\n");
+//    printf("kvworker process keys:");
+//    for(auto it:kvs.keys){
+//        printf("%d ",it);
+//    }
+//    printf("\n");
     mu_.lock();
     recv_kvs_[ts].push_back(kvs);
     mu_.unlock();
@@ -593,19 +592,19 @@ int KVWorker<Val>::Pull_(
       mu_.lock();
       auto& kvs = recv_kvs_[ts];
       mu_.unlock();
-
-      for (const auto& s : kvs) {
-          printf("pull:");
-          for(auto it:s.keys){
-              printf("%ld ",it);
-          }
-          printf("\n");
-          printf("value:");
-          for(auto it:s.vals){
-              printf("%lf ",it);
-          }
-          printf("\n");
-      }
+//
+//      for (const auto& s : kvs) {
+//          printf("pull:");
+//          for(auto it:s.keys){
+//              printf("%ld ",it);
+//          }
+//          printf("\n");
+//          printf("value:");
+//          for(auto it:s.vals){
+//              printf("%lf ",it);
+//          }
+//          printf("\n");
+//      }
 
 
       // do check

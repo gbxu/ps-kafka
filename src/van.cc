@@ -225,18 +225,18 @@ void Van::ProcessDataMsg(Message* msg) {
   auto* obj = Postoffice::Get()->GetCustomer(app_id, customer_id, 5);
   CHECK(obj) << "timeout (5 sec) to wait App " << app_id << " customer " << customer_id \
     << " ready ";
-    if(msg->data.size()>0){
-        printf("van process:\n");
-        for(auto it:msg->data[0]){
-            printf("%d ",it);
-        }
-        if(msg->data.size()>1){
-            for(auto it:msg->data[1]){
-                printf(" %f ",it);
-            }
-            printf(" ending \n");
-        }
-    }
+//    if(msg->data.size()>0){
+//        printf("van process:\n");
+//        for(auto it:msg->data[0]){
+//            printf("%d ",it);
+//        }
+//        if(msg->data.size()>1){
+//            for(auto it:msg->data[1]){
+//                printf(" %f ",it);
+//            }
+//            printf(" ending \n");
+//        }
+//    }
   obj->Accept(*msg);
 }
 

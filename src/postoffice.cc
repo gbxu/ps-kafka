@@ -78,7 +78,6 @@ void Postoffice::Start(int customer_id, const char* argv0, const bool do_barrier
 }
 
 void Postoffice::Finalize(const int customer_id, const bool do_barrier) {
-  printf("prepare to stop\n");
   if (do_barrier) Barrier(customer_id, kWorkerGroup + kServerGroup + kScheduler);
   if (customer_id == 0) {
     van_->Stop();
@@ -161,8 +160,6 @@ const std::vector<Range>& Postoffice::GetServerKeyRanges() {
   server_key_ranges_mu_.lock();
   if (server_key_ranges_.empty()) {
     for (int i = 0; i < num_servers_; ++i) {
-        printf("num_servers_:%d\n",num_servers_);
-        printf("begin%ld,end%ld\n",kMaxKey / num_servers_ * i,kMaxKey / num_servers_ * (i+1));
       server_key_ranges_.push_back(Range(
           kMaxKey / num_servers_ * i,
           kMaxKey / num_servers_ * (i+1)));

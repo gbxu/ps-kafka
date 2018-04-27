@@ -1,5 +1,6 @@
 #include "ps/ps.h"
 using namespace ps;
+
 void StartServer() {
   if (!IsServer()) return;
   auto server = new KVServer<float>(0);
@@ -12,15 +13,15 @@ void RunWorker() {
   KVWorker<float> kv(0, 0);
 
   // init
-  int num = 5;//000
+  int num = 1;
   std::vector<Key> keys(num);
   std::vector<float> vals(num);
 
   int rank = MyRank();
   srand(rank + 7);
   for (int i = 0; i < num; ++i) {
-    keys[i] = i;//kMaxKey / num * i + rank;
-    vals[i] = i*2.0;//(rand() % 1000);
+    keys[i] = kMaxKey / num * i + rank;
+    vals[i] = (rand() % 1000);
   }
 
   // push
@@ -42,10 +43,10 @@ void RunWorker() {
   for (int i = 0; i < num; ++i) {
     res += fabs(rets[i] - vals[i] * repeat);
   }
-  std::cout<< "error: " << res / repeat;
   CHECK_LT(res / repeat, 1e-5);
   LL << "error: " << res / repeat;
 }
+
 int main(int argc, char *argv[]) {
 
   // setup server nodes

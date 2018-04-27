@@ -58,6 +58,7 @@ protected:
     void Stop() override {
         PS_VLOG(1) << my_node_.ShortDebugString() << " is stopping";
         Van::Stop();
+
         for (auto& itr : producers_) {
             RD rd = itr.second;
             rd_kafka_t *rk = rd.rk;
@@ -72,7 +73,6 @@ protected:
             /* Destroy the instance */
             rd_kafka_destroy(rk);
         }
-
         for (auto& itr : consumers_) {
             RD rd = itr.second;
             rd_kafka_t *rk = rd.rk;
@@ -81,13 +81,17 @@ protected:
             for (int i = 0; i < partitions_cnt; ++i) {
                 rd_kafka_consume_stop(rkt, i);
             }
-            //while (rd_kafka_outq_len(rk) > 0) rd_kafka_poll(rk, 10);
+            while (rd_kafka_outq_len(rk) > 0) rd_kafka_poll(rk, 10);//TODO:block when server!! cant finish!!
             /* Destroy topic */
             rd_kafka_topic_destroy(rkt);
             /* Destroy handle */
             rd_kafka_destroy(rk);
 
         }
+
+        DebugOut debug = DebugOut(my_node_);
+        debug.stream()<<"finish";
+        debug.Out();
     }
 
     void Bind(const char *brokers, Topic topic) override {
@@ -411,26 +415,26 @@ protected:
                     rd_kafka_message_destroy(rkmessage);
                 });
                 msg->data.push_back(data);
-
-                if(i==1){
-                    printf("kafka van recvmsg keys:\n");
-                    for(auto it:data){
-                        printf("%d ",it);
-                    }
-                    printf(" ending \n");
-                } else{
-                    printf("kafka van recvmsg vals:\n");
-                    for(auto it:data){
-                        printf("%lf ",it);
-                    }
-                    printf(" ending \n");
-
-                }
+//
+//                if(i==1){
+//                    printf("kafka van recvmsg keys:\n");
+//                    for(auto it:data){
+//                        printf("%d ",it);
+//                    }
+//                    printf(" ending \n");
+//                } else{
+//                    printf("kafka van recvmsg vals:\n");
+//                    for(auto it:data){
+//                        printf("%lf ",it);
+//                    }
+//                    printf(" ending \n");
+//
+//                }
                 DebugOut debug = DebugOut(my_node_);
                 debug.stream()<<" "<<(i-1)<<"recvmsg from " \
                             <<Postoffice::IDtoRoleIDConst(msg->meta.sender) \
                             <<" :"<<msg->meta.control.DebugString() \
-                            <<" size:"<<size<<" data:"<<data;
+                            <<" size:"<<size;//<<" data:"<<data;
                 debug.Out();
 
                 if (tmp[0] == 'f') break;
