@@ -33,7 +33,7 @@ ${Cyrus-SASL}:
     $(eval DIR=rdkafka)
     rm -rf $(FILE) $(DIR)
     $(WGET) http://ftp.andrew.cmu.edu/pub/cyrus-mail/$(FILE) && tar --no-same-owner -zxf $(FILE)
-    cd $(DIR) && ./configure -prefix=$(DEPS_PATH) && $(MAKE) && $(MAKE) install
+    cd $(DIR) && ./configure --prefix=$(DEPS_PATH) && $(MAKE) && $(MAKE) install
     rm -rf $(FILE) $(DIR)
 
 
