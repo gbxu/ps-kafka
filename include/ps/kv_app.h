@@ -182,9 +182,19 @@ class KVWorker : public SimpleApp {
     int ts = obj_->NewRequest(kServerGroup);
     AddCallback(ts, cb);
     KVPairs<Val> kvs;
+
     kvs.keys = keys;
     kvs.vals = vals;
     kvs.lens = lens;
+
+    printf("push\n");
+    for(auto k:kvs.keys) {
+      printf("key:%d ",k);
+    }
+    printf("\n");
+    for(auto v:kvs.vals) printf("%lf ",v);
+    printf("\n");
+
     Send(ts, true, cmd, kvs);
     return ts;
   }
@@ -348,9 +358,9 @@ struct KVServerDefaultHandle {
     for (size_t i = 0; i < n; ++i) {
       Key key = req_data.keys[i];
       if (req_meta.push) {
-        store[key] += req_data.vals[i];
+        store[key] += req_data.vals[i];//store
       } else {
-        res.vals[i] = store[key];
+        res.vals[i] = store[key];//send back the values
       }
     }
     server->Response(req_meta, res);
@@ -384,6 +394,15 @@ void KVServer<Val>::Process(const Message& msg) {
       CHECK_EQ(data.lens.size(), data.keys.size());
     }
   }
+  printf("server process:\n");
+  for(auto it:data.keys){
+      printf("%d ",it);
+  }
+    for(auto it:data.vals){
+        printf(" %f ",it);
+    }
+    printf("\n");
+
   CHECK(request_handle_);
   request_handle_(meta, data, this);
 }
@@ -398,6 +417,18 @@ void KVServer<Val>::Response(const KVMeta& req, const KVPairs<Val>& res) {
   msg.meta.head        = req.cmd;
   msg.meta.timestamp   = req.timestamp;
   msg.meta.recver      = req.sender;
+    printf("response:");
+    printf("keys:");
+  for(auto it:res.keys){
+      printf("%d ",it);
+  }
+    printf("\n");
+    printf("value:");
+    for(auto it:res.vals){
+        printf("%f ",it);
+    }
+    printf("\nresponse ending \n");
+
   if (res.keys.size()) {
     msg.AddData(res.keys);
     msg.AddData(res.vals);
@@ -432,6 +463,7 @@ void KVWorker<Val>::DefaultSlicer(
 
     // don't send it to servers for empty kv
     sliced->at(i).first = (len != 0);
+    printf("len:%d\n",len);
   }
   CHECK_EQ(pos[n], send.keys.size());
   if (send.keys.empty()) return;
@@ -521,6 +553,11 @@ void KVWorker<Val>::Process(const Message& msg) {
     if (msg.data.size() > (size_t)2) {
       kvs.lens = msg.data[2];
     }
+    printf("kvworker process keys:");
+    for(auto it:kvs.keys){
+        printf("%d ",it);
+    }
+    printf("\n");
     mu_.lock();
     recv_kvs_[ts].push_back(kvs);
     mu_.unlock();
@@ -528,7 +565,7 @@ void KVWorker<Val>::Process(const Message& msg) {
 
   // finished, run callbacks
   if (obj_->NumResponse(ts) == Postoffice::Get()->num_servers() - 1)  {
-    RunCallback(ts);
+    RunCallback(ts);//KVWorker<Val>::Pull_() will AddCallback()
   }
 }
 template <typename Val>
@@ -557,11 +594,26 @@ int KVWorker<Val>::Pull_(
       auto& kvs = recv_kvs_[ts];
       mu_.unlock();
 
+      for (const auto& s : kvs) {
+          printf("pull:");
+          for(auto it:s.keys){
+              printf("%ld ",it);
+          }
+          printf("\n");
+          printf("value:");
+          for(auto it:s.vals){
+              printf("%lf ",it);
+          }
+          printf("\n");
+      }
+
+
       // do check
       size_t total_key = 0, total_val = 0;
       for (const auto& s : kvs) {
         Range range = FindRange(keys, s.keys.front(), s.keys.back()+1);
-        CHECK_EQ(range.size(), s.keys.size())
+        CHECK_EQ(range.size(), s.keys.size())<<" "<<s.keys.front()<<" "<<s.keys.back()+1
+            <<" "<<range.size()<<" "<<s.keys.size()
             << "unmatched keys size from one server";
         if (lens) CHECK_EQ(s.lens.size(), s.keys.size());
         total_key += s.keys.size();
@@ -603,7 +655,7 @@ int KVWorker<Val>::Pull_(
       recv_kvs_.erase(ts);
       mu_.unlock();
       if (cb) cb();
-    });
+    });//add call back ending
 
   KVPairs<Val> kvs; kvs.keys = keys;
   Send(ts, false, cmd, kvs);

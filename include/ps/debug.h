@@ -19,7 +19,8 @@ namespace ps {
 class DebugOut {
 public:
     DebugOut(Node mynode) {
-        log_stream_<<mynode.DebugString().c_str();
+        //log_stream_<<mynode.DebugString().c_str();
+        log_stream_<<mynode.ShortDebugString().c_str();
     }
     std::ostringstream &stream() {
         return log_stream_;

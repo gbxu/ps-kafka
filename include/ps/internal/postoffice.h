@@ -132,6 +132,19 @@ class Postoffice {
       return std::max((id - 8) / 2, 0)+1;
     }
   }
+  static inline const char * IDtoRoleIDConst(int id) {
+    std::string tmp;
+    if(id == Node::kEmpty) {
+      tmp = "0";//empty
+    } else if(id == 1) {
+      tmp = "H"+std::to_string(id);//scheduler
+    } else if(id % 2 == 1){
+      tmp = "W"+std::to_string(id);//worker
+    } else {
+      tmp = "S"+std::to_string(id);//server
+    }
+    return tmp.c_str();
+  }
   static inline Topic IDtoTopic(int id) {
     if(id == 1) {
       return TOSCHEDULER;//TOSCHEDULER

@@ -12,19 +12,19 @@ void RunWorker() {
   KVWorker<float> kv(0, 0);
 
   // init
-  int num = 10000;
+  int num = 5;//000
   std::vector<Key> keys(num);
   std::vector<float> vals(num);
 
   int rank = MyRank();
   srand(rank + 7);
   for (int i = 0; i < num; ++i) {
-    keys[i] = kMaxKey / num * i + rank;
-    vals[i] = (rand() % 1000);
+    keys[i] = i;//kMaxKey / num * i + rank;
+    vals[i] = i*2.0;//(rand() % 1000);
   }
 
   // push
-  int repeat = 50;
+  int repeat = 1;
   std::vector<int> ts;
   for (int i = 0; i < repeat; ++i) {
     ts.push_back(kv.Push(keys, vals));

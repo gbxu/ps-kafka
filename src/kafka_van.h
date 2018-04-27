@@ -161,22 +161,17 @@ protected:
         //producer
         rd_kafka_t *rk = rd_kafka_new(RD_KAFKA_PRODUCER, conf, errstr, sizeof(errstr));
         if (!rk) {
-            fprintf(stderr,
-                    "%% Failed to create new producer: %s\n", errstr);
-            return;
+            CHECK(0)<<" Failed to create new producer "<<errstr;
         }
         /* Add brokers */
         if (rd_kafka_brokers_add(rk, brokers) == 0) {
-            fprintf(stderr, "%% No valid brokers specified\n");
-            exit(1);
+            CHECK(0)<<" No valid brokers specified";
         }
         //topic
         rd_kafka_topic_t *rkt = rd_kafka_topic_new(rk, TopicToConst(topic), NULL);
         if (!rkt) {
-            fprintf(stderr, "%% Failed to create topic object: %s\n",
-                    rd_kafka_err2str(rd_kafka_last_error()));
             rd_kafka_destroy(rk);
-            return;
+            CHECK(0)<<" Failed to create topic object: "<<rd_kafka_err2str(rd_kafka_last_error());
         }
         RD rd = {rk, rkt};
         producers_[TopicToConst(topic)] = rd;
@@ -203,11 +198,13 @@ protected:
         RD rd = it->second;
         rd_kafka_t *rk = rd.rk;
         rd_kafka_topic_t *rkt = rd.rkt;
+
         // send meta
         int meta_size; char* meta_buf;
         PackMeta(msg.meta, &meta_buf, &meta_size);
         int n = msg.data.size();
         if(n == 0){
+            //no more
             retry0:
             if(rd_kafka_produce(rkt,
                                 partition,
@@ -232,42 +229,56 @@ protected:
                     goto retry0;
                 }
             }
-
-        }else{
+        }else {
             retry1:
             if(rd_kafka_produce(rkt,
                                 partition,
                                 RD_KAFKA_MSG_F_COPY,
                                 meta_buf, meta_size,
-                                "t", 1,/*more*/
+                                "t", 1,/*no more*/
                                 NULL) == -1){
+                /* Poll to handle delivery reports */
                 if (rd_kafka_last_error() ==
                     RD_KAFKA_RESP_ERR__QUEUE_FULL) {
+                    /* If the internal queue is full, wait for
+                     * messages to be delivered and then retry.
+                     * The internal queue represents both
+                     * messages to be sent and messages that have
+                     * been sent or failed, awaiting their
+                     * delivery report callback to be called.
+                     *
+                     * The internal queue is limited by the
+                     * configuration property
+                     * queue.buffering.max.messages */
                     rd_kafka_poll(rk, 1000/*block for max 1000ms*/);
                     goto retry1;
                 }
             }
         }
+
+        rd_kafka_poll(rk, 0/*non-blocking*/);
+
         //Debug: send meta message
         DebugOut debug = DebugOut(my_node_);
-        debug.stream()<<" sendmsg:"<<TopicToConst(topic)<<partition \
+        debug.stream()<<" "<<"sendmsg to:"<<Postoffice::IDtoRoleIDConst(msg.meta.recver) \
                         <<" :"<<msg.meta.control.DebugString() \
                         <<" size :"<<meta_size;
         debug.Out();
 
-        rd_kafka_poll(rk, 0/*non-blocking*/);
         int send_bytes = meta_size;
         // send data
         for (int i = 0; i < n; ++i) {
             SArray<char>* data = new SArray<char>(msg.data[i]);
+            char * data_buff = data->data();
             int data_size = data->size();
             if (i == n - 1) {
+                //no more
                 retry2:
                 if(rd_kafka_produce(rkt,
                                     partition,
                                     RD_KAFKA_MSG_F_COPY,
-                                    data, data_size,
-                                    "f", 1,/*no more*/
+                                    data_buff, data_size,
+                                    "f", 1,/*more*/
                                     NULL) == -1){
                     if (rd_kafka_last_error() ==
                         RD_KAFKA_RESP_ERR__QUEUE_FULL) {
@@ -276,12 +287,12 @@ protected:
                         goto retry2;
                     }
                 }
-            } else{
+            }else {
                 retry3:
                 if(rd_kafka_produce(rkt,
                                     partition,
                                     RD_KAFKA_MSG_F_COPY,
-                                    data, data_size,
+                                    data_buff, data_size,
                                     "t", 1,/*more*/
                                     NULL) == -1){
                     if (rd_kafka_last_error() ==
@@ -294,6 +305,12 @@ protected:
             }
             rd_kafka_poll(rk, 0/*non-blocking*/);
             send_bytes += data_size;
+            //Debug: send data message
+            DebugOut debug = DebugOut(my_node_);
+            debug.stream()<<" "<<i<<"sendmsg to:"<<Postoffice::IDtoRoleIDConst(msg.meta.recver) \
+                        <<" :"<<msg.meta.control.DebugString() \
+                        <<" size :"<<data_size;
+            debug.Out();
         }
         return send_bytes;
     }
@@ -363,7 +380,12 @@ protected:
                 }
             }
             CHECK_EQ(rkmessage->err,0);
-            char* buf = CHECK_NOTNULL((char *)rkmessage->payload);
+            char* buf;
+            if((char *)rkmessage->payload == NULL){
+                buf = "";
+            }else{
+                buf = CHECK_NOTNULL((char *)rkmessage->payload);
+            }
             size_t size = rkmessage->len;
             recv_bytes += size;
 
@@ -376,8 +398,8 @@ protected:
                 rd_kafka_message_destroy(rkmessage);
 
                 DebugOut debug = DebugOut(my_node_);
-                debug.stream()<<" recvmsg from "<<TopicToConst(currConsumerTopic) \
-                            <<currConsumerPartition \
+                debug.stream()<<" "<<"recvmsg from "
+                            <<Postoffice::IDtoRoleIDConst(msg->meta.sender) \
                             <<" :"<<msg->meta.control.DebugString() \
                             <<" size:"<<size;
                 debug.Out();
@@ -390,16 +412,31 @@ protected:
                 });
                 msg->data.push_back(data);
 
+                if(i==1){
+                    printf("kafka van recvmsg keys:\n");
+                    for(auto it:data){
+                        printf("%d ",it);
+                    }
+                    printf(" ending \n");
+                } else{
+                    printf("kafka van recvmsg vals:\n");
+                    for(auto it:data){
+                        printf("%lf ",it);
+                    }
+                    printf(" ending \n");
+
+                }
                 DebugOut debug = DebugOut(my_node_);
-                debug.stream()<<" 2recvmsg from "<<TopicToConst(currConsumerTopic) \
-                            <<currConsumerPartition \
+                debug.stream()<<" "<<(i-1)<<"recvmsg from " \
+                            <<Postoffice::IDtoRoleIDConst(msg->meta.sender) \
                             <<" :"<<msg->meta.control.DebugString() \
-                            <<" size:"<<size;
+                            <<" size:"<<size<<" data:"<<data;
                 debug.Out();
 
                 if (tmp[0] == 'f') break;
             }
         }
+
         return recv_bytes;
     }
 
