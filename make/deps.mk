@@ -16,36 +16,36 @@ ${PROTOBUF}:
 	cd $(DIR) && export CFLAGS=-fPIC && export CXXFLAGS=-fPIC && ./configure -prefix=$(DEPS_PATH) && $(MAKE) && $(MAKE) install
 	rm -rf $(FILE) $(DIR)
 
-#----
-#cyrus-sasl-2.1.27
-#CYRUSSASL = ${DEPS_PATH}/include/
-${CYRUSSASL}:
-	$(eval FILE=cyrus-sasl-2.1.27.tar.gz)
-	$(eval DIR=cyrus-sasl-2.1.27)
-	rm -rf $(FILE) $(DIR)
-	$(WGET) $(GBURL)/$(FILE) && tar --no-same-owner -zxf $(FILE)
-	cd $(DIR) && ./autogen.sh  --prefix=$(DEPS_PATH) && $(MAKE) && $(MAKE) install
-	rm -rf $(FILE) $(DIR)
+#[----
+# #cyrus-sasl-2.1.27
+# CYRUSSASL = ${DEPS_PATH}/include/
+# ${CYRUSSASL}:
+#	$(eval FILE=cyrus-sasl-2.1.27.tar.gz)
+#	$(eval DIR=cyrus-sasl-2.1.27)
+#	rm -rf $(FILE) $(DIR)
+#	$(WGET) $(GBURL)/$(FILE) && tar --no-same-owner -zxf $(FILE)
+#	cd $(DIR) && ./autogen.sh  -prefix=$(DEPS_PATH) && $(MAKE) && $(MAKE) install
+#	rm -rf $(FILE) $(DIR)
 
-#openssl-1.1.0h
-#OPENSSL = ${DEPS_PATH}/include/
-${OPENSSL}:
-	$(eval FILE=openssl-1.1.0h.tar.gz)
-	$(eval DIR=openssl-1.1.0h)
-	rm -rf $(FILE) $(DIR)
-	$(WGET) $(GBURL)/$(FILE) && tar --no-same-owner -zxf $(FILE)
-	cd $(DIR) && ./Configure --prefix=$(DEPS_PATH) && $(MAKE) && $(MAKE) install
-	rm -rf $(FILE) $(DIR)
+# #openssl-1.1.0h
+# OPENSSL = ${DEPS_PATH}/include/
+# ${OPENSSL}:
+#	$(eval FILE=openssl-1.1.0h.tar.gz)
+#	$(eval DIR=openssl-1.1.0h)
+#	rm -rf $(FILE) $(DIR)
+#	$(WGET) $(GBURL)/$(FILE) && tar --no-same-owner -zxf $(FILE)
+#	cd $(DIR) && ./Configure -prefix=$(DEPS_PATH) && $(MAKE) && $(MAKE) install
+#	rm -rf $(FILE) $(DIR)
 
-#zlib-1.2.11
-#ZLIB = ${DEPS_PATH}/include/
-${ZLIB}:
-	$(eval FILE=zlib-1.2.11.tar.gz)
-	$(eval DIR=zlib-1.2.11)
-	rm -rf $(FILE) $(DIR)
-	$(WGET) $(GBURL)/$(FILE) && tar --no-same-owner -zxf $(FILE)
-	cd $(DIR) && ./Configure --prefix=$(DEPS_PATH) && $(MAKE) && $(MAKE) install
-	rm -rf $(FILE) $(DIR)
+# #zlib-1.2.11
+# ZLIB = ${DEPS_PATH}/include/
+# ${ZLIB}:
+#	$(eval FILE=zlib-1.2.11.tar.gz)
+#	$(eval DIR=zlib-1.2.11)
+#	rm -rf $(FILE) $(DIR)
+#	$(WGET) $(GBURL)/$(FILE) && tar --no-same-owner -zxf $(FILE)
+#	cd $(DIR) && ./Configure -prefix=$(DEPS_PATH) && $(MAKE) && $(MAKE) install
+#	rm -rf $(FILE) $(DIR)
 
 # rdkafka
 RDKAFKA = ${DEPS_PATH}/include/librdkafka/rdkafka.h
@@ -55,9 +55,9 @@ ${RDKAFKA}:
 	$(eval DIR=rdkafka)
 	rm -rf $(FILE) $(DIR)
 	$(WGET) $(GBURL)/$(FILE) && tar --no-same-owner -zxf $(FILE)
-	cd $(DIR) && export CFLAGS=-fPIC && export CXXFLAGS=-fPIC && ./configure --prefix=$(DEPS_PATH) && $(MAKE) && $(MAKE) install
+	cd $(DIR) && ./configure --prefix=$(DEPS_PATH)  --disable-lz4 --disable-ssl --disable-sasl && $(MAKE) && $(MAKE) install
 	rm -rf $(FILE) $(DIR)
-#----
+#----]
 
 # lz4
 LZ4 = ${DEPS_PATH}/include/lz4.h
