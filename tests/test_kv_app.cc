@@ -16,12 +16,14 @@ void RunWorker() {
   int num = 1;
   std::vector<Key> keys(num);
   std::vector<float> vals(num);
+  //std::vector<int> lens(num);
 
   int rank = MyRank();
   srand(rank + 7);
   for (int i = 0; i < num; ++i) {
-    keys[i] = kMaxKey / num * i + rank;
+    keys[i] = kMaxKey / num * i + rank;//%llu
     vals[i] = (rand() % 1000);
+    //lens[i] = 1;
   }
 
   // push

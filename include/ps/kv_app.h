@@ -404,7 +404,7 @@ void KVServer<Val>::Process(const Message& msg) {
 //    printf("\n");
 
   CHECK(request_handle_);
-  request_handle_(meta, data, this);
+  request_handle_(meta, data, this);//KVServerDefaultHandle
 }
 
 template <typename Val>
@@ -500,7 +500,7 @@ template <typename Val>
 void KVWorker<Val>::Send(int timestamp, bool push, int cmd, const KVPairs<Val>& kvs) {
   // slice the message
   SlicedKVs sliced;
-  slicer_(kvs, Postoffice::Get()->GetServerKeyRanges(), &sliced);
+  slicer_(kvs, Postoffice::Get()->GetServerKeyRanges(), &sliced);//DefaultSlicer
 
   // need to add response first, since it will not always trigger the callback
   int skipped = 0;
@@ -562,7 +562,7 @@ void KVWorker<Val>::Process(const Message& msg) {
     mu_.unlock();
   }
 
-  // finished, run callbacks
+  // finished, run callbacks //this is last one
   if (obj_->NumResponse(ts) == Postoffice::Get()->num_servers() - 1)  {
     RunCallback(ts);//KVWorker<Val>::Pull_() will AddCallback()
   }
@@ -589,24 +589,12 @@ int KVWorker<Val>::Pull_(
     const SArray<Key>& keys, C* vals, D* lens, int cmd, const Callback& cb) {
   int ts = obj_->NewRequest(kServerGroup);
   AddCallback(ts, [this, ts, keys, vals, lens, cb]() mutable {
+      //cb usually is a pointer of delete function
+      //AddCallback add the lambda funtion to a map callbacks_[timestamp].
+      //RunCallback will call it
       mu_.lock();
       auto& kvs = recv_kvs_[ts];
       mu_.unlock();
-//
-//      for (const auto& s : kvs) {
-//          printf("pull:");
-//          for(auto it:s.keys){
-//              printf("%ld ",it);
-//          }
-//          printf("\n");
-//          printf("value:");
-//          for(auto it:s.vals){
-//              printf("%lf ",it);
-//          }
-//          printf("\n");
-//      }
-
-
       // do check
       size_t total_key = 0, total_val = 0;
       for (const auto& s : kvs) {
@@ -654,9 +642,12 @@ int KVWorker<Val>::Pull_(
       recv_kvs_.erase(ts);
       mu_.unlock();
       if (cb) cb();
-    });//add call back ending
+    });//add callback ending
+
 
   KVPairs<Val> kvs; kvs.keys = keys;
+  kvs.vals = vals->data();// TODO：
+  kvs.lens = lens->data();// TODO：
   Send(ts, false, cmd, kvs);
   return ts;
 }

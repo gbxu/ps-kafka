@@ -437,10 +437,10 @@ protected:
                             <<" size:"<<size;//<<" data:"<<data;
                 debug.Out();
 
+
                 if (tmp[0] == 'f') break;
             }
         }
-
         return recv_bytes;
     }
 
