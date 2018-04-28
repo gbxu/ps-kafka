@@ -7,7 +7,7 @@ WGET = wget
 endif
 
 # protobuf
-#PROTOBUF = ${DEPS_PATH}/include/google/protobuf/message.h
+PROTOBUF = ${DEPS_PATH}/include/google/protobuf/message.h
 ${PROTOBUF}:
 	$(eval FILE=protobuf-2.5.0.tar.gz)
 	$(eval DIR=protobuf-2.5.0)
@@ -49,7 +49,6 @@ ${PROTOBUF}:
 
 # rdkafka
 RDKAFKA = ${DEPS_PATH}/include/librdkafka/rdkafka.h
-
 ${RDKAFKA}:
 	$(eval FILE=rdkafka.tar.gz)
 	$(eval DIR=rdkafka)
