@@ -531,6 +531,7 @@ void KVWorker<Val>::Send(int timestamp, bool push, int cmd, const KVPairs<Val>& 
       msg.AddData(kvs.keys);
       msg.AddData(kvs.vals);
       if (kvs.lens.size()) {
+          printf("in 3th: %d\n",kvs.lens.size());
         msg.AddData(kvs.lens);
       }
     }
