@@ -322,8 +322,8 @@ protected:
                         rd_kafka_poll(rk, 1000/*block for max 1000ms*/);
                         goto retry3;
                     } else{
-                        if (1) { printf("here2.2.1 ");}
-                        printf("%s "),rd_kafka_err2str(rd_kafka_last_error());
+                        if (1) { printf("here2.2.1 %d",data_size);}
+                        printf("producer error: %s "),rd_kafka_err2str(rd_kafka_last_error());
                         CHECK(0)<<" producer: "<<rd_kafka_err2str(rd_kafka_last_error());
                         if (1) { printf("here2.2.2 ");}
                     }
