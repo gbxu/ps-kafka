@@ -275,10 +275,12 @@ protected:
 
         int send_bytes = meta_size;
         // send data
-        std::string stmp;
         for (int i = 0; i < n; ++i) {
+            if (i == n - 1) { pritnf("here1 ");}
             SArray<char>* data = new SArray<char>(msg.data[i]);
             char * data_buff = data->data();
+            if(data_buff == nullptr) {printf("data empty");}
+            if (i == n - 1) { pritnf("here2 ");}
             int data_size = data->size();
             if (i == n - 1) {
                 //no more
@@ -299,7 +301,7 @@ protected:
                         CHECK(0)<<" producer: "<<rd_kafka_err2str(rd_kafka_last_error());
                     }
                 }
-                stmp = "f";printf("%s\n",stmp.c_str());
+                if (i == n - 1) { pritnf("here3 ");}
             }else {
                 retry3:
                 if(rd_kafka_produce(rkt,
@@ -318,7 +320,6 @@ protected:
                         CHECK(0)<<" producer: "<<rd_kafka_err2str(rd_kafka_last_error());
                     }
                 }
-                stmp = "t";printf("%s\n",stmp.c_str());
             }
             rd_kafka_poll(rk, 0/*non-blocking*/);
             send_bytes += data_size;
@@ -326,7 +327,7 @@ protected:
             DebugOut debug = DebugOut(my_node_);
             debug.stream()<<" "<<i<<"sendmsg to:"<<Postoffice::IDtoRoleIDConst(msg.meta.recver) \
                         <<" :"<<msg.meta.control.DebugString() \
-                        <<" size :"<<data_size<<" "<<stmp.c_str();
+                        <<" size :"<<data_size<<" "<<stmp.c_str()<<" "<<i<<"/"<<n;
             debug.Out();
         }
         return send_bytes;
