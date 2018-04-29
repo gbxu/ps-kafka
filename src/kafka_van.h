@@ -276,14 +276,15 @@ protected:
         int send_bytes = meta_size;
         // send data
         for (int i = 0; i < n; ++i) {
-            if (i == n - 1) { printf("here1 ");}
+            if (1) { printf("here1 ");}
             SArray<char>* data = new SArray<char>(msg.data[i]);
             char * data_buff = data->data();
             if(data_buff == nullptr) {printf("data empty");}
-            if (i == n - 1) { printf("here2 ");}
+            if (1) { printf("here2 ");}
             int data_size = data->size();
             if (i == n - 1) {
                 //no more
+                if (1) { printf("here2.1 ");}
                 retry2:
                 if(rd_kafka_produce(rkt,
                                     partition,
@@ -301,9 +302,10 @@ protected:
                         CHECK(0)<<" producer: "<<rd_kafka_err2str(rd_kafka_last_error());
                     }
                 }
-                if (i == n - 1) { printf("here3 ");}
+                if (1) { printf("here3.1 ");}
             }else {
                 retry3:
+                if (1) { printf("here2.2 ");}
                 if(rd_kafka_produce(rkt,
                                     partition,
                                     RD_KAFKA_MSG_F_COPY,
@@ -320,6 +322,7 @@ protected:
                         CHECK(0)<<" producer: "<<rd_kafka_err2str(rd_kafka_last_error());
                     }
                 }
+                if (1) { printf("here3.2 ");}
             }
             rd_kafka_poll(rk, 0/*non-blocking*/);
             send_bytes += data_size;
