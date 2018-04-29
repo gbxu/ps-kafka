@@ -292,13 +292,14 @@ protected:
                     if (rd_kafka_last_error() ==
                         RD_KAFKA_RESP_ERR__QUEUE_FULL) {
                         //queue full
+                        printf("%s\n",rd_kafka_err2str(rd_kafka_last_error()));
                         rd_kafka_poll(rk, 1000/*block for max 1000ms*/);
                         goto retry2;
                     } else{
                         CHECK(0)<<" producer: "<<rd_kafka_err2str(rd_kafka_last_error());
                     }
                 }
-                stmp = "f";
+                stmp = "f";printf("%s\n",stmp.c_str());
             }else {
                 retry3:
                 if(rd_kafka_produce(rkt,
@@ -310,13 +311,14 @@ protected:
                     if (rd_kafka_last_error() ==
                         RD_KAFKA_RESP_ERR__QUEUE_FULL) {
                         //queue full
+                        printf("%s\n",rd_kafka_err2str(rd_kafka_last_error()));
                         rd_kafka_poll(rk, 1000/*block for max 1000ms*/);
                         goto retry3;
                     } else{
                         CHECK(0)<<" producer: "<<rd_kafka_err2str(rd_kafka_last_error());
                     }
                 }
-                stmp = "t";
+                stmp = "t";printf("%s\n",stmp.c_str());
             }
             rd_kafka_poll(rk, 0/*non-blocking*/);
             send_bytes += data_size;

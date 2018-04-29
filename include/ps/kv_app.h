@@ -196,9 +196,6 @@ class KVWorker : public SimpleApp {
 //    for(auto v:kvs.vals) printf("%lf ",v);
 //    printf("\n");
 
-    if(DEBUGORNOT){
-        printf("Begin Push:\n");
-    }
     Send(ts, true, cmd, kvs);
     return ts;
   }
@@ -542,8 +539,16 @@ void KVWorker<Val>::Send(int timestamp, bool push, int cmd, const KVPairs<Val>& 
       msg.AddData(kvs.keys);
       msg.AddData(kvs.vals);
       if (kvs.lens.size()) {
-          printf("in 3th: %d\n",kvs.lens.size());
         msg.AddData(kvs.lens);
+      }
+    }
+    if(msg.meta.push){
+      if(DEBUGORNOT){
+        printf("Begin push:\n");
+      }
+    } else{
+      if(DEBUGORNOT){
+        printf("Begin Pull:\n");
       }
     }
     Postoffice::Get()->van()->Send(msg);
@@ -602,9 +607,6 @@ template <typename C, typename D>
 int KVWorker<Val>::Pull_(
     const SArray<Key>& keys, C* vals, D* lens, int cmd, const Callback& cb) {
 
-  if(DEBUGORNOT){
-      printf("Begin Pull:\n");
-  }
   int ts = obj_->NewRequest(kServerGroup);
   AddCallback(ts, [this, ts, keys, vals, lens, cb]() mutable {
       //cb usually is a pointer of delete function
