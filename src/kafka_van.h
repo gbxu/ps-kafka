@@ -385,8 +385,12 @@ protected:
                 if(!rkmessage){
                     continue;
                 } else if(rkmessage->err){
-                    //printf("debug:err:%s\n",rd_kafka_err2str(rkmessage->err));
-                    continue;
+                    printf("debug:err:%s\n",rd_kafka_err2str(rkmessage->err));
+                    if(rkmessage->err == RD_KAFKA_RESP_ERR__PARTITION_EOF){
+                        continue;
+                    }else{
+                        CHECK(0)<<" consumer: "<<rd_kafka_err2str(rkmessage->err);
+                    }
                 } else {
                     break;
                 }
