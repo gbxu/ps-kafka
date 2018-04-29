@@ -114,7 +114,6 @@ class KVWorker : public SimpleApp {
            const std::vector<int>& lens = {},
            int cmd = 0,
            const Callback& cb = nullptr) {
-    printf("Begin Push:\n");
     return ZPush(
         SArray<Key>(keys), SArray<Val>(vals), SArray<int>(lens), cmd, cb);
   }
@@ -150,7 +149,6 @@ class KVWorker : public SimpleApp {
            std::vector<int>* lens = nullptr,
            int cmd = 0,
            const Callback& cb = nullptr) {
-    printf("Begin Pull:\n");
     return Pull_(SArray<Key>(keys), vals, lens, cmd, cb);
   }
 
@@ -197,6 +195,9 @@ class KVWorker : public SimpleApp {
 //    for(auto v:kvs.vals) printf("%lf ",v);
 //    printf("\n");
 
+    if(DEBUGORNOT){
+        printf("Begin Push:\n");
+    }
     Send(ts, true, cmd, kvs);
     return ts;
   }
@@ -396,10 +397,12 @@ void KVServer<Val>::Process(const Message& msg) {
       CHECK_EQ(data.lens.size(), data.keys.size());
     }
   }
-  if(meta.push){
-    printf("reply push\n");
-  } else{
-    printf("reply pull\n");
+  if(DEBUGORNOT){
+      if(meta.push){
+          printf("reply push\n");
+      } else{
+          printf("reply pull\n");
+      }
   }
 //  printf("server process:\n");
 //  for(auto it:data.keys){
@@ -597,6 +600,10 @@ template <typename Val>
 template <typename C, typename D>
 int KVWorker<Val>::Pull_(
     const SArray<Key>& keys, C* vals, D* lens, int cmd, const Callback& cb) {
+
+  if(DEBUGORNOT){
+      printf("Begin Pull:\n");
+  }
   int ts = obj_->NewRequest(kServerGroup);
   AddCallback(ts, [this, ts, keys, vals, lens, cb]() mutable {
       //cb usually is a pointer of delete function

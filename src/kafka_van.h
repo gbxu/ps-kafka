@@ -231,6 +231,8 @@ protected:
                      * queue.buffering.max.messages */
                     rd_kafka_poll(rk, 1000/*block for max 1000ms*/);
                     goto retry0;
+                } else{
+                    CHECK(0)<<" producer: "<<rd_kafka_err2str(rd_kafka_last_error());
                 }
             }
         }else {
@@ -256,6 +258,8 @@ protected:
                      * queue.buffering.max.messages */
                     rd_kafka_poll(rk, 1000/*block for max 1000ms*/);
                     goto retry1;
+                } else{
+                    CHECK(0)<<" producer: "<<rd_kafka_err2str(rd_kafka_last_error());
                 }
             }
         }
@@ -289,6 +293,8 @@ protected:
                         //queue full
                         rd_kafka_poll(rk, 1000/*block for max 1000ms*/);
                         goto retry2;
+                    } else{
+                        CHECK(0)<<" producer: "<<rd_kafka_err2str(rd_kafka_last_error());
                     }
                 }
             }else {
@@ -304,6 +310,8 @@ protected:
                         //queue full
                         rd_kafka_poll(rk, 1000/*block for max 1000ms*/);
                         goto retry3;
+                    } else{
+                        CHECK(0)<<" producer: "<<rd_kafka_err2str(rd_kafka_last_error());
                     }
                 }
             }
