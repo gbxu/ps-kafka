@@ -275,6 +275,7 @@ protected:
 
         int send_bytes = meta_size;
         // send data
+        std::string stmp;
         for (int i = 0; i < n; ++i) {
             SArray<char>* data = new SArray<char>(msg.data[i]);
             char * data_buff = data->data();
@@ -297,6 +298,7 @@ protected:
                         CHECK(0)<<" producer: "<<rd_kafka_err2str(rd_kafka_last_error());
                     }
                 }
+                stmp = "f";
             }else {
                 retry3:
                 if(rd_kafka_produce(rkt,
@@ -314,6 +316,7 @@ protected:
                         CHECK(0)<<" producer: "<<rd_kafka_err2str(rd_kafka_last_error());
                     }
                 }
+                stmp = "t";
             }
             rd_kafka_poll(rk, 0/*non-blocking*/);
             send_bytes += data_size;
@@ -321,7 +324,7 @@ protected:
             DebugOut debug = DebugOut(my_node_);
             debug.stream()<<" "<<i<<"sendmsg to:"<<Postoffice::IDtoRoleIDConst(msg.meta.recver) \
                         <<" :"<<msg.meta.control.DebugString() \
-                        <<" size :"<<data_size;
+                        <<" size :"<<data_size<<" "<<stmp.c_str();
             debug.Out();
         }
         return send_bytes;
@@ -417,7 +420,7 @@ protected:
                 debug.stream()<<" "<<"recvmsg from "
                             <<Postoffice::IDtoRoleIDConst(msg->meta.sender) \
                             <<" :"<<msg->meta.control.DebugString() \
-                            <<" size:"<<size;
+                            <<" size:"<<size<<" "<<tmp[0];
                 debug.Out();
                 if (tmp[0] == 'f') break;
             } else {
@@ -446,7 +449,7 @@ protected:
                 debug.stream()<<" "<<(i-1)<<"recvmsg from " \
                             <<Postoffice::IDtoRoleIDConst(msg->meta.sender) \
                             <<" :"<<msg->meta.control.DebugString() \
-                            <<" size:"<<size;//<<" data:"<<data;
+                            <<" size:"<<size<<" "<<tmp[0];//<<" data:"<<data;
                 debug.Out();
 
 
