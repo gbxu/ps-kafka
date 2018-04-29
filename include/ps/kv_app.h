@@ -114,6 +114,7 @@ class KVWorker : public SimpleApp {
            const std::vector<int>& lens = {},
            int cmd = 0,
            const Callback& cb = nullptr) {
+    printf("Begin Push:\n");
     return ZPush(
         SArray<Key>(keys), SArray<Val>(vals), SArray<int>(lens), cmd, cb);
   }
@@ -149,6 +150,7 @@ class KVWorker : public SimpleApp {
            std::vector<int>* lens = nullptr,
            int cmd = 0,
            const Callback& cb = nullptr) {
+    printf("Begin Pull:\n");
     return Pull_(SArray<Key>(keys), vals, lens, cmd, cb);
   }
 
@@ -393,6 +395,11 @@ void KVServer<Val>::Process(const Message& msg) {
       data.lens = msg.data[2];
       CHECK_EQ(data.lens.size(), data.keys.size());
     }
+  }
+  if(meta.push){
+    printf("reply push\n");
+  } else{
+    printf("reply pull\n");
   }
 //  printf("server process:\n");
 //  for(auto it:data.keys){
