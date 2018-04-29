@@ -667,10 +667,10 @@ int KVWorker<Val>::Pull_(
 
   KVPairs<Val> kvs; kvs.keys = keys;
   //kvs.vals ：pull do not need it
-  printf("Pull_\n");
-  if(lens != nullptr && !lens->empty()){
-      kvs.lens.CopyFrom(lens->data(),lens->size());//lens
-  }
+  //printf("Pull_\n");
+  //if(lens != nullptr && !lens->empty()){
+  //    kvs.lens.CopyFrom(lens->data(),lens->size());//lens
+  //}
   Send(ts, false, cmd, kvs);
   return ts;
 }
