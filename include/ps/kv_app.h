@@ -9,6 +9,7 @@
 #include <vector>
 #include "ps/base.h"
 #include "ps/simple_app.h"
+#include "ps/debug.h"
 namespace ps {
 
 /**
