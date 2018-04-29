@@ -119,6 +119,10 @@ protected:
                               errstr, sizeof(errstr)) != RD_KAFKA_CONF_OK){
             CHECK(0)<<"rd_kafka_conf_set error";
         }
+        if (rd_kafka_conf_set(conf, "fetch.message.max.bytes", "5242880",
+                              errstr, sizeof(errstr)) != RD_KAFKA_CONF_OK){
+            CHECK(0)<<"rd_kafka_conf_set error";
+        }
         //rd_kafka_conf_set(conf, "group.id", "0", errstr, sizeof(errstr));// dont need the group.id now
         //consumer
         rd_kafka_t *rk = rd_kafka_new(RD_KAFKA_CONSUMER, conf, errstr, sizeof(errstr));
