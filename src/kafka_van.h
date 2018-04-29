@@ -288,15 +288,11 @@ protected:
         int send_bytes = meta_size;
         // send data
         for (int i = 0; i < n; ++i) {
-            if (1) { printf("here1 ");}
             SArray<char>* data = new SArray<char>(msg.data[i]);
             char * data_buff = data->data();
-            if(data_buff == nullptr) {printf("data empty");}
-            if (1) { printf("here2 ");}
             int data_size = data->size();
             if (i == n - 1) {
                 //no more
-                if (1) { printf("here2.1 ");}
                 retry2:
                 if(rd_kafka_produce(rkt,
                                     partition,
@@ -306,21 +302,14 @@ protected:
                                     NULL) == -1){
                     if (rd_kafka_last_error() ==
                         RD_KAFKA_RESP_ERR__QUEUE_FULL) {
-                        //queue full
-                        printf("%s\n",rd_kafka_err2str(rd_kafka_last_error()));
                         rd_kafka_poll(rk, 1000/*block for max 1000ms*/);
                         goto retry2;
                     } else{
-                        if (1) { printf("here2.1.1 ");}
-                        printf("%s "),rd_kafka_err2str(rd_kafka_last_error());
                         CHECK(0)<<" producer: "<<rd_kafka_err2str(rd_kafka_last_error());
-                        if (1) { printf("here2.1.2 ");}
                     }
                 }
-                if (1) { printf("here3.1 ");}
             }else {
                 retry3:
-                if (1) { printf("here2.2 ");}
                 if(rd_kafka_produce(rkt,
                                     partition,
                                     RD_KAFKA_MSG_F_COPY,
@@ -330,17 +319,12 @@ protected:
                     if (rd_kafka_last_error() ==
                         RD_KAFKA_RESP_ERR__QUEUE_FULL) {
                         //queue full
-                        printf("%s\n",rd_kafka_err2str(rd_kafka_last_error()));
                         rd_kafka_poll(rk, 1000/*block for max 1000ms*/);
                         goto retry3;
                     } else{
-                        if (1) { printf("here2.2.1 %d",data_size);}
-                        printf("producer error: %s "),rd_kafka_err2str(rd_kafka_last_error());
                         CHECK(0)<<" producer: "<<rd_kafka_err2str(rd_kafka_last_error());
-                        if (1) { printf("here2.2.2 ");}
                     }
                 }
-                if (1) { printf("here3.2 ");}
             }
             rd_kafka_poll(rk, 0/*non-blocking*/);
             send_bytes += data_size;
@@ -412,7 +396,6 @@ protected:
                 if(!rkmessage){
                     continue;
                 } else if(rkmessage->err){
-                    printf("debug:err:%s\n",rd_kafka_err2str(rkmessage->err));
                     if(rkmessage->err == RD_KAFKA_RESP_ERR__PARTITION_EOF){
                         continue;
                     }else{

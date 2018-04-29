@@ -395,13 +395,13 @@ void KVServer<Val>::Process(const Message& msg) {
       CHECK_EQ(data.lens.size(), data.keys.size());
     }
   }
-  if(DEBUGORNOT){
-      if(meta.push){
-          printf("reply push\n");
-      } else{
-          printf("reply pull\n");
-      }
-  }
+//  if(DEBUGORNOT){
+//      if(meta.push){
+//          printf("reply push\n");
+//      } else{
+//          printf("reply pull\n");
+//      }
+//  }
 //  printf("server process:\n");
 //  for(auto it:data.keys){
 //      printf("%d ",it);
@@ -542,15 +542,15 @@ void KVWorker<Val>::Send(int timestamp, bool push, int cmd, const KVPairs<Val>& 
         msg.AddData(kvs.lens);
       }
     }
-    if(msg.meta.push){
-      if(DEBUGORNOT){
-        printf("Begin push:\n");
-      }
-    } else{
-      if(DEBUGORNOT){
-        printf("Begin Pull:\n");
-      }
-    }
+//    if(msg.meta.push){
+//      if(DEBUGORNOT){
+//        printf("Begin push:\n");
+//      }
+//    } else{
+//      if(DEBUGORNOT){
+//        printf("Begin Pull:\n");
+//      }
+//    }
     Postoffice::Get()->van()->Send(msg);
   }
 }
