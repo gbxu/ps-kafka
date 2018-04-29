@@ -115,6 +115,10 @@ protected:
         //conf
         char errstr[512];
         rd_kafka_conf_t *conf = rd_kafka_conf_new();
+        if (rd_kafka_conf_set(conf, "message.max.bytes", "5242880",
+                              errstr, sizeof(errstr)) != RD_KAFKA_CONF_OK){
+            CHECK(0)<<"rd_kafka_conf_set error";
+        }
         //rd_kafka_conf_set(conf, "group.id", "0", errstr, sizeof(errstr));// dont need the group.id now
         //consumer
         rd_kafka_t *rk = rd_kafka_new(RD_KAFKA_CONSUMER, conf, errstr, sizeof(errstr));
@@ -162,6 +166,10 @@ protected:
         //conf
         char errstr[512];
         rd_kafka_conf_t *conf = rd_kafka_conf_new();
+        if (rd_kafka_conf_set(conf, "message.max.bytes", "5242880",
+                              errstr, sizeof(errstr)) != RD_KAFKA_CONF_OK){
+            CHECK(0)<<"rd_kafka_conf_set error";
+        }
         //producer
         rd_kafka_t *rk = rd_kafka_new(RD_KAFKA_PRODUCER, conf, errstr, sizeof(errstr));
         if (!rk) {
