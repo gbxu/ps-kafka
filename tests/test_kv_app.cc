@@ -26,11 +26,12 @@ void RunWorker() {
     //lens[i] = 1;
   }
 
+
   // push
   int repeat = 1;
   std::vector<int> ts;
   for (int i = 0; i < repeat; ++i) {
-    ts.push_back(kv.Push(keys, vals));
+    ts.push_back(kv.Push(keys, vals));//kv.Push(keys, vals, lens)
 
     // to avoid too frequency push, which leads huge memory usage
     if (i > 10) kv.Wait(ts[ts.size()-10]);
@@ -39,7 +40,7 @@ void RunWorker() {
 
   // pull
   std::vector<float> rets;
-  kv.Wait(kv.Pull(keys, &rets));
+  kv.Wait(kv.Pull(keys, &rets));//kv.Pull(keys, &rets, &lens)
 
   float res = 0;
   for (int i = 0; i < num; ++i) {

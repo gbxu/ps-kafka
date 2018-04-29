@@ -443,6 +443,7 @@ template <typename Val>
 void KVWorker<Val>::DefaultSlicer(
     const KVPairs<Val>& send, const std::vector<Range>& ranges,
     typename KVWorker<Val>::SlicedKVs* sliced) {
+
   sliced->resize(ranges.size());
 
   // find the positions in msg.key
@@ -500,6 +501,7 @@ template <typename Val>
 void KVWorker<Val>::Send(int timestamp, bool push, int cmd, const KVPairs<Val>& kvs) {
   // slice the message
   SlicedKVs sliced;
+
   slicer_(kvs, Postoffice::Get()->GetServerKeyRanges(), &sliced);//DefaultSlicer
 
   // need to add response first, since it will not always trigger the callback
@@ -646,8 +648,10 @@ int KVWorker<Val>::Pull_(
 
 
   KVPairs<Val> kvs; kvs.keys = keys;
-  kvs.vals = vals->data();// TODO：
-  kvs.lens = lens->data();// TODO：
+  //kvs.vals ：pull do not need it
+  if(lens != nullptr && !lens->empty()){
+      kvs.lens.CopyFrom(lens->data(),lens->size());//lens
+  }
   Send(ts, false, cmd, kvs);
   return ts;
 }
