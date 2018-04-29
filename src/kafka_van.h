@@ -299,10 +299,10 @@ protected:
                         rd_kafka_poll(rk, 1000/*block for max 1000ms*/);
                         goto retry2;
                     } else{
-                        if (1) { printf("here2.2.1 ");}
+                        if (1) { printf("here2.1.1 ");}
                         printf("%s "),rd_kafka_err2str(rd_kafka_last_error());
                         CHECK(0)<<" producer: "<<rd_kafka_err2str(rd_kafka_last_error());
-                        if (1) { printf("here2.2.2 ");}
+                        if (1) { printf("here2.1.2 ");}
                     }
                 }
                 if (1) { printf("here3.1 ");}
@@ -322,7 +322,10 @@ protected:
                         rd_kafka_poll(rk, 1000/*block for max 1000ms*/);
                         goto retry3;
                     } else{
+                        if (1) { printf("here2.2.1 ");}
+                        printf("%s "),rd_kafka_err2str(rd_kafka_last_error());
                         CHECK(0)<<" producer: "<<rd_kafka_err2str(rd_kafka_last_error());
+                        if (1) { printf("here2.2.2 ");}
                     }
                 }
                 if (1) { printf("here3.2 ");}
