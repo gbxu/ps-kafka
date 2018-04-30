@@ -115,11 +115,15 @@ protected:
         //conf
         char errstr[512];
         rd_kafka_conf_t *conf = rd_kafka_conf_new();
-        if (rd_kafka_conf_set(conf, "message.max.bytes", "5242880",
+        if (rd_kafka_conf_set(conf, "message.max.bytes", "1000000000",
                               errstr, sizeof(errstr)) != RD_KAFKA_CONF_OK){
             CHECK(0)<<"rd_kafka_conf_set error";
         }
-        if (rd_kafka_conf_set(conf, "fetch.message.max.bytes", "5242880",
+        if (rd_kafka_conf_set(conf, "fetch.message.max.bytes", "1000000000",
+                              errstr, sizeof(errstr)) != RD_KAFKA_CONF_OK){
+            CHECK(0)<<"rd_kafka_conf_set error";
+        }
+        if (rd_kafka_conf_set(conf, "receive.message.max.bytes", "2147483647",
                               errstr, sizeof(errstr)) != RD_KAFKA_CONF_OK){
             CHECK(0)<<"rd_kafka_conf_set error";
         }
@@ -170,7 +174,11 @@ protected:
         //conf
         char errstr[512];
         rd_kafka_conf_t *conf = rd_kafka_conf_new();
-        if (rd_kafka_conf_set(conf, "message.max.bytes", "5242880",
+        if (rd_kafka_conf_set(conf, "message.max.bytes", "1000000000",
+                              errstr, sizeof(errstr)) != RD_KAFKA_CONF_OK){
+            CHECK(0)<<"rd_kafka_conf_set error";
+        }//5242880
+        if (rd_kafka_conf_set(conf, "queue.buffering.max.kbytes", "2097151",
                               errstr, sizeof(errstr)) != RD_KAFKA_CONF_OK){
             CHECK(0)<<"rd_kafka_conf_set error";
         }
@@ -195,9 +203,7 @@ protected:
 
 
     int SendMsg(Message& msg) override {
-
         std::lock_guard<std::mutex> lk(mu_);
-        printf(":0");
         if(Postoffice::Get()->is_worker() && msg.meta.control.empty() && msg.meta.push){
             push_cnt++;
             printf("push:%d\n",push_cnt);
@@ -209,7 +215,6 @@ protected:
         }else if(Postoffice::Get()->is_server() && msg.meta.control.empty() && !msg.meta.push){
             printf("reply pull:\n");
         }
-        printf(":");
 
         //topic partition
         msg.meta.sender = my_node_.id;
@@ -305,7 +310,6 @@ protected:
             SArray<char>* data = new SArray<char>(msg.data[i]);
             char * data_buff = data->data();
             int data_size = data->size();
-            printf("send %d ,",data_size);
             if (i == n - 1) {
                 //no more
                 retry2:
