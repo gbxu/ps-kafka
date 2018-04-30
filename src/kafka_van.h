@@ -441,13 +441,17 @@ protected:
                 rd_kafka_message_destroy(rkmessage);
 
                 if(Postoffice::Get()->is_worker() && msg->meta.control.empty() && msg->meta.push){
-                    printf("recv reply push:\n");
+                    re_push_cnt++;
+                    printf("recv reply push:%d\n",re_push_cnt);
                 } else if(Postoffice::Get()->is_server() && msg->meta.control.empty() && msg->meta.push){
-                    printf("recv push repuest:\n");
+                    re_reply_push_cnt++;
+                    printf("recv push repuest:%d\n",re_reply_push_cnt);
                 } else if(Postoffice::Get()->is_worker() && msg->meta.control.empty() && !msg->meta.push){
-                    printf("recv reply pull:\n");
+                    re_pull_cnt++;
+                    printf("recv reply pull:%d\n",re_pull_cnt);
                 } else if(Postoffice::Get()->is_server() && msg->meta.control.empty() && !msg->meta.push){
-                    printf("recv pull repuest:\n");
+                    re_reply_pull_cnt++;
+                    printf("recv pull repuest:%d\n",re_reply_pull_cnt);
                 }
                 DebugOut debug = DebugOut(my_node_);
                 debug.stream()<<" "<<"recvmsg from "
@@ -507,6 +511,10 @@ private:
     int pull_cnt = 0;
     int reply_push_cnt = 0;
     int reply_pull_cnt = 0;
+    int re_push_cnt = 0;
+    int re_pull_cnt = 0;
+    int re_reply_push_cnt = 0;
+    int re_reply_pull_cnt = 0;
 };
 }  // namespace ps
 #endif //PSLITE_KAFKA_VAN_H_

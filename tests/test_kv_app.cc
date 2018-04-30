@@ -13,7 +13,7 @@ void RunWorker() {
   KVWorker<float> kv(0, 0);
 
   // init
-  int num = 10000000;
+  int num = 200000;
   std::vector<Key> keys(num);
   std::vector<float> vals(num);
   //std::vector<int> lens(num);
@@ -28,7 +28,7 @@ void RunWorker() {
 
 
   // push
-  int repeat = 20;
+  int repeat = 3000;
   std::vector<int> ts;
   for (int i = 0; i < repeat; ++i) {
     ts.push_back(kv.Push(keys, vals));//kv.Push(keys, vals, lens)
