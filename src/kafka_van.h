@@ -115,15 +115,11 @@ protected:
         //conf
         char errstr[512];
         rd_kafka_conf_t *conf = rd_kafka_conf_new();
-        if (rd_kafka_conf_set(conf, "message.max.bytes", "1000000000",
+        if (rd_kafka_conf_set(conf, "message.max.bytes", "104857600",
                               errstr, sizeof(errstr)) != RD_KAFKA_CONF_OK){
             CHECK(0)<<"rd_kafka_conf_set error";
         }
-        if (rd_kafka_conf_set(conf, "fetch.message.max.bytes", "1000000000",
-                              errstr, sizeof(errstr)) != RD_KAFKA_CONF_OK){
-            CHECK(0)<<"rd_kafka_conf_set error";
-        }
-        if (rd_kafka_conf_set(conf, "receive.message.max.bytes", "2147483647",
+        if (rd_kafka_conf_set(conf, "fetch.message.max.bytes", "104857600",
                               errstr, sizeof(errstr)) != RD_KAFKA_CONF_OK){
             CHECK(0)<<"rd_kafka_conf_set error";
         }
@@ -174,11 +170,11 @@ protected:
         //conf
         char errstr[512];
         rd_kafka_conf_t *conf = rd_kafka_conf_new();
-        if (rd_kafka_conf_set(conf, "message.max.bytes", "1000000000",
+        if (rd_kafka_conf_set(conf, "message.max.bytes", "104857600",
                               errstr, sizeof(errstr)) != RD_KAFKA_CONF_OK){
             CHECK(0)<<"rd_kafka_conf_set error";
         }//5242880
-        if (rd_kafka_conf_set(conf, "queue.buffering.max.kbytes", "2097151",
+        if (rd_kafka_conf_set(conf, "queue.buffering.max.kbytes", "1048576",
                               errstr, sizeof(errstr)) != RD_KAFKA_CONF_OK){
             CHECK(0)<<"rd_kafka_conf_set error";
         }
