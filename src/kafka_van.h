@@ -300,6 +300,7 @@ protected:
             SArray<char>* data = new SArray<char>(msg.data[i]);
             char * data_buff = data->data();
             int data_size = data->size();
+            printf("send %d ,",data_size);
             if (i == n - 1) {
                 //no more
                 retry2:
@@ -432,6 +433,15 @@ protected:
                 UnpackMeta(buf, size, &(msg->meta));//
                 rd_kafka_message_destroy(rkmessage);
 
+                if(Postoffice::Get()->is_worker() && msg->meta.control.empty() && msg->meta.push){
+                    printf("recv reply push:\n");
+                } else if(Postoffice::Get()->is_server() && msg->meta.control.empty() && msg->meta.push){
+                    printf("recv push repuest:\n");
+                } else if(Postoffice::Get()->is_worker() && msg->meta.control.empty() && !msg->meta.push){
+                    printf("recv reply pull:\n");
+                } else if(Postoffice::Get()->is_server() && msg->meta.control.empty() && !msg->meta.push){
+                    printf("recv pull repuest:\n");
+                }
                 DebugOut debug = DebugOut(my_node_);
                 debug.stream()<<" "<<"recvmsg from "
                             <<Postoffice::IDtoRoleIDConst(msg->meta.sender) \
