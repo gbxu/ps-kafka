@@ -197,6 +197,15 @@ protected:
     int SendMsg(Message& msg) override {
 
         std::lock_guard<std::mutex> lk(mu_);
+        if(Postoffice::Get()->is_worker() && msg.meta.control.empty() && msg.meta.push){
+            printf("push:\n");
+        } else if(Postoffice::Get()->is_server() && msg.meta.control.empty() && msg.meta.push){
+            printf("reply push:\n");
+        }else if(Postoffice::Get()->is_worker() && msg.meta.control.empty() && !msg.meta.push){
+            printf("pull:\n");
+        }else if(Postoffice::Get()->is_server() && msg.meta.control.empty() && !msg.meta.push){
+            printf("reply pull:\n");
+        }
         //topic partition
         msg.meta.sender = my_node_.id;
         Topic topic = Postoffice::IDtoTopic(msg.meta.recver);
