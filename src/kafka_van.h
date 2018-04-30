@@ -197,15 +197,20 @@ protected:
     int SendMsg(Message& msg) override {
 
         std::lock_guard<std::mutex> lk(mu_);
+        printf(":0");
         if(Postoffice::Get()->is_worker() && msg.meta.control.empty() && msg.meta.push){
-            printf("push:\n");
+            push_cnt++;
+            printf("push:%d\n",push_cnt);
         } else if(Postoffice::Get()->is_server() && msg.meta.control.empty() && msg.meta.push){
             printf("reply push:\n");
         }else if(Postoffice::Get()->is_worker() && msg.meta.control.empty() && !msg.meta.push){
-            printf("pull:\n");
+            pull_cnt++;
+            printf("pull:%d\n",pull_cnt);
         }else if(Postoffice::Get()->is_server() && msg.meta.control.empty() && !msg.meta.push){
             printf("reply pull:\n");
         }
+        printf(":");
+
         //topic partition
         msg.meta.sender = my_node_.id;
         Topic topic = Postoffice::IDtoTopic(msg.meta.recver);
@@ -496,6 +501,8 @@ private:
     int partitions_cnt;
     Topic currConsumerTopic;
     int currConsumerPartition;
+    int push_cnt = 0;
+    int pull_cnt = 0;
 };
 }  // namespace ps
 #endif //PSLITE_KAFKA_VAN_H_
