@@ -204,12 +204,14 @@ protected:
             push_cnt++;
             printf("push:%d\n",push_cnt);
         } else if(Postoffice::Get()->is_server() && msg.meta.control.empty() && msg.meta.push){
-            printf("reply push:\n");
+            reply_push_cnt++;
+            printf("reply push%d:\n",reply_push_cnt);
         }else if(Postoffice::Get()->is_worker() && msg.meta.control.empty() && !msg.meta.push){
             pull_cnt++;
             printf("pull:%d\n",pull_cnt);
         }else if(Postoffice::Get()->is_server() && msg.meta.control.empty() && !msg.meta.push){
-            printf("reply pull:\n");
+            reply_pull_cnt++;
+            printf("reply pull:%d\n",reply_pull_cnt);
         }
 
         //topic partition
@@ -503,6 +505,8 @@ private:
     int currConsumerPartition;
     int push_cnt = 0;
     int pull_cnt = 0;
+    int reply_push_cnt = 0;
+    int reply_pull_cnt = 0;
 };
 }  // namespace ps
 #endif //PSLITE_KAFKA_VAN_H_
