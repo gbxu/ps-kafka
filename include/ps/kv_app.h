@@ -195,7 +195,6 @@ class KVWorker : public SimpleApp {
 //    printf("\n");
 //    for(auto v:kvs.vals) printf("%lf ",v);
 //    printf("\n");
-
     Send(ts, true, cmd, kvs);
     return ts;
   }

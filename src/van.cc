@@ -435,6 +435,7 @@ void Van::Receiving() {
     if (resender_ && resender_->AddIncomming(msg)) continue;
 
     if (!msg.meta.control.empty()) {
+
       // control msg
       auto& ctrl = msg.meta.control;
       if (ctrl.cmd == Control::TERMINATE) {
@@ -452,7 +453,6 @@ void Van::Receiving() {
     } else {
       ProcessDataMsg(&msg);
     }
-
   }
 }
 

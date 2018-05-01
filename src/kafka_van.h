@@ -396,7 +396,6 @@ protected:
                 msg->meta.recver = my_node_.id;
                 // task
                 UnpackMeta(buf, size, &(msg->meta));//
-                rd_kafka_message_destroy(rkmessage);
 
                 if(DEBUGPUSHPULL){
                     if(Postoffice::Get()->is_worker() && msg->meta.control.empty() && msg->meta.push){
@@ -404,13 +403,13 @@ protected:
                         printf("recv reply push:%d\n",re_push_cnt);
                     } else if(Postoffice::Get()->is_server() && msg->meta.control.empty() && msg->meta.push){
                         re_reply_push_cnt++;
-                        printf("recv push repuest:%d\n",re_reply_push_cnt);
+                        printf("recv push :%d\n",re_reply_push_cnt);
                     } else if(Postoffice::Get()->is_worker() && msg->meta.control.empty() && !msg->meta.push){
                         re_pull_cnt++;
                         printf("recv reply pull:%d\n",re_pull_cnt);
                     } else if(Postoffice::Get()->is_server() && msg->meta.control.empty() && !msg->meta.push){
                         re_reply_pull_cnt++;
-                        printf("recv pull repuest:%d\n",re_reply_pull_cnt);
+                        printf("recv pull :%d\n",re_reply_pull_cnt);
                     }
                 }
                 DebugOut debug = DebugOut(my_node_);
@@ -419,7 +418,12 @@ protected:
                             <<" :"<<msg->meta.control.DebugString() \
                             <<" size:"<<size<<" "<<tmp[0];
                 debug.Out();
-                if (tmp[0] == 'f') break;
+                if (tmp[0] == 'f'){
+                    rd_kafka_message_destroy(rkmessage);
+                    break;
+                }else{
+                    rd_kafka_message_destroy(rkmessage);
+                }
             } else {
                 // zero-copy
                 SArray<char> data;
@@ -437,7 +441,9 @@ protected:
                 debug.Out();
 
 
-                if (tmp[0] == 'f') break;
+                if (tmp[0] == 'f'){
+                    break;
+                }
             }
         }
         return recv_bytes;
