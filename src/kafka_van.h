@@ -123,6 +123,10 @@ protected:
                               errstr, sizeof(errstr)) != RD_KAFKA_CONF_OK){
             CHECK(0)<<"rd_kafka_conf_set error";
         }
+        if (rd_kafka_conf_set(conf, "socket.keepalive.enable", "true",
+                              errstr, sizeof(errstr)) != RD_KAFKA_CONF_OK){
+            CHECK(0)<<"rd_kafka_conf_set error";
+        }
         //rd_kafka_conf_set(conf, "group.id", "0", errstr, sizeof(errstr));// dont need the group.id now
         //consumer
         rd_kafka_t *rk = rd_kafka_new(RD_KAFKA_CONSUMER, conf, errstr, sizeof(errstr));
@@ -175,6 +179,10 @@ protected:
             CHECK(0)<<"rd_kafka_conf_set error";
         }//5242880
         if (rd_kafka_conf_set(conf, "queue.buffering.max.kbytes", "1048576",
+                              errstr, sizeof(errstr)) != RD_KAFKA_CONF_OK){
+            CHECK(0)<<"rd_kafka_conf_set error";
+        }
+        if (rd_kafka_conf_set(conf, "socket.keepalive.enable", "true",
                               errstr, sizeof(errstr)) != RD_KAFKA_CONF_OK){
             CHECK(0)<<"rd_kafka_conf_set error";
         }

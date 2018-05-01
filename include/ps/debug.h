@@ -12,7 +12,7 @@ server_id:8, 10, 12, …
 #define PSKAFKA_DEBUG_H
 
 #define DEBUGORNOT false
-#define DEBUGPUSHPULL true
+#define DEBUGPUSHPULL false
 #include "ps/internal/van.h"
 
 namespace ps {
