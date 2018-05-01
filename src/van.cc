@@ -399,7 +399,6 @@ void Van::Stop() {
 }
 
 int Van::Send(Message& msg) {
-  printf("send:");
   int send_bytes = SendMsg(msg);
   CHECK_NE(send_bytes, -1);
   send_bytes_ += send_bytes;

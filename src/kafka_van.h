@@ -200,18 +200,20 @@ protected:
 
     int SendMsg(Message& msg) override {
         std::lock_guard<std::mutex> lk(mu_);
-        if(Postoffice::Get()->is_worker() && msg.meta.control.empty() && msg.meta.push){
-            push_cnt++;
-            printf("push:%d\n",push_cnt);
-        } else if(Postoffice::Get()->is_server() && msg.meta.control.empty() && msg.meta.push){
-            reply_push_cnt++;
-            printf("reply push%d:\n",reply_push_cnt);
-        }else if(Postoffice::Get()->is_worker() && msg.meta.control.empty() && !msg.meta.push){
-            pull_cnt++;
-            printf("pull:%d\n",pull_cnt);
-        }else if(Postoffice::Get()->is_server() && msg.meta.control.empty() && !msg.meta.push){
-            reply_pull_cnt++;
-            printf("reply pull:%d\n",reply_pull_cnt);
+        if(DEBUGORNOT){
+            if(Postoffice::Get()->is_worker() && msg.meta.control.empty() && msg.meta.push){
+                push_cnt++;
+                printf("push:%d\n",push_cnt);
+            } else if(Postoffice::Get()->is_server() && msg.meta.control.empty() && msg.meta.push){
+                reply_push_cnt++;
+                printf("reply push%d:\n",reply_push_cnt);
+            }else if(Postoffice::Get()->is_worker() && msg.meta.control.empty() && !msg.meta.push){
+                pull_cnt++;
+                printf("pull:%d\n",pull_cnt);
+            }else if(Postoffice::Get()->is_server() && msg.meta.control.empty() && !msg.meta.push){
+                reply_pull_cnt++;
+                printf("reply pull:%d\n",reply_pull_cnt);
+            }
         }
 
         //topic partition
@@ -219,14 +221,10 @@ protected:
         Topic topic = Postoffice::IDtoTopic(msg.meta.recver);
         int partition = Postoffice::IDtoPartition(msg.meta.recver);
         // find the producer
-        //CHECK_NE(topic, NONE);
-        //CHECK_NE(partition, kEmpty);
         auto it = producers_.find(TopicToConst(topic));
         if (it == producers_.end()) {
-            DebugOut debug = DebugOut(my_node_);
-            debug.stream()<<" scheduler:"<<Postoffice::Get()->is_scheduler()<<" "<<" cant find:"<<TopicToConst(topic)<<partition;
-            debug.Out();
-            return -1;
+            CHECK(0)<<" scheduler:"<<Postoffice::Get()->is_scheduler()<<" " \
+                    <<" cant find:"<<TopicToConst(topic)<<partition;
         }
         RD rd = it->second;
         rd_kafka_t *rk = rd.rk;
@@ -235,66 +233,37 @@ protected:
         // send meta
         int meta_size; char* meta_buf;
         PackMeta(msg.meta, &meta_buf, &meta_size);
+//        char meta_buf_cp[meta_size];
+//        if(meta_buf != nullptr){
+//            strncpy(meta_buf_cp, meta_buf, meta_size);
+//            delete [] meta_buf;
+//        }
         int n = msg.data.size();
+        std::string meta_flag;
         if(n == 0){
-            //no more
-            retry0:
-            if(rd_kafka_produce(rkt,
-                                partition,
-                                RD_KAFKA_MSG_F_COPY,
-                                meta_buf, meta_size,
-                                "f", 1,/*no more*/
-                                NULL) == -1){
-                /* Poll to handle delivery reports */
-                if (rd_kafka_last_error() ==
-                    RD_KAFKA_RESP_ERR__QUEUE_FULL) {
-                    /* If the internal queue is full, wait for
-                     * messages to be delivered and then retry.
-                     * The internal queue represents both
-                     * messages to be sent and messages that have
-                     * been sent or failed, awaiting their
-                     * delivery report callback to be called.
-                     *
-                     * The internal queue is limited by the
-                     * configuration property
-                     * queue.buffering.max.messages */
-                    rd_kafka_poll(rk, 1000/*block for max 1000ms*/);
-                    goto retry0;
-                } else{
-                    CHECK(0)<<" producer: "<<rd_kafka_err2str(rd_kafka_last_error());
-                }
-            }
+            meta_flag = "f";//no more
         }else {
-            retry1:
-            if(rd_kafka_produce(rkt,
-                                partition,
-                                RD_KAFKA_MSG_F_COPY,
-                                meta_buf, meta_size,
-                                "t", 1,/*no more*/
-                                NULL) == -1){
-                /* Poll to handle delivery reports */
-                if (rd_kafka_last_error() ==
-                    RD_KAFKA_RESP_ERR__QUEUE_FULL) {
-                    /* If the internal queue is full, wait for
-                     * messages to be delivered and then retry.
-                     * The internal queue represents both
-                     * messages to be sent and messages that have
-                     * been sent or failed, awaiting their
-                     * delivery report callback to be called.
-                     *
-                     * The internal queue is limited by the
-                     * configuration property
-                     * queue.buffering.max.messages */
-                    rd_kafka_poll(rk, 1000/*block for max 1000ms*/);
-                    goto retry1;
-                } else{
-                    CHECK(0)<<" producer: "<<rd_kafka_err2str(rd_kafka_last_error());
-                }
+            meta_flag = "t";
+        }
+        retry1:
+        if(rd_kafka_produce(rkt,
+                            partition,
+                            RD_KAFKA_MSG_F_COPY,
+                            meta_buf, meta_size,
+                            meta_flag.c_str(), 1,
+                            NULL) == -1){
+            if (rd_kafka_last_error() ==
+                RD_KAFKA_RESP_ERR__QUEUE_FULL) {
+                rd_kafka_poll(rk, 1000);
+                goto retry1;
+            } else{
+                CHECK(0)<<" producer: "<<rd_kafka_err2str(rd_kafka_last_error());
             }
         }
-
         rd_kafka_poll(rk, 0/*non-blocking*/);
-
+        if(meta_buf!= nullptr){
+            delete [] static_cast<char*>(meta_buf);
+        }
         //Debug: send meta message
         DebugOut debug = DebugOut(my_node_);
         debug.stream()<<" "<<"sendmsg to:"<<Postoffice::IDtoRoleIDConst(msg.meta.recver) \
@@ -305,45 +274,42 @@ protected:
         int send_bytes = meta_size;
         // send data
         for (int i = 0; i < n; ++i) {
+            std::string flag_data;
+            std::string msg_data_cp;
             SArray<char>* data = new SArray<char>(msg.data[i]);
-            char * data_buff = data->data();
             int data_size = data->size();
+            char *data_buff = data->data();
+//            char data_buf_cp[data_size];
+//            strncpy(data_buf_cp, data->data(), data_size);
+//            if(data != NULL ){
+//                delete static_cast<SArray<char>*>(data);
+//            }
             if (i == n - 1) {
                 //no more
-                retry2:
-                if(rd_kafka_produce(rkt,
-                                    partition,
-                                    RD_KAFKA_MSG_F_COPY,
-                                    data_buff, data_size,
-                                    "f", 1,/*more*/
-                                    NULL) == -1){
-                    if (rd_kafka_last_error() ==
-                        RD_KAFKA_RESP_ERR__QUEUE_FULL) {
-                        rd_kafka_poll(rk, 1000/*block for max 1000ms*/);
-                        goto retry2;
-                    } else{
-                        CHECK(0)<<" producer: "<<rd_kafka_err2str(rd_kafka_last_error());
-                    }
-                }
+                flag_data = "f";
             }else {
-                retry3:
-                if(rd_kafka_produce(rkt,
-                                    partition,
-                                    RD_KAFKA_MSG_F_COPY,
-                                    data_buff, data_size,
-                                    "t", 1,/*more*/
-                                    NULL) == -1){
-                    if (rd_kafka_last_error() ==
-                        RD_KAFKA_RESP_ERR__QUEUE_FULL) {
-                        //queue full
-                        rd_kafka_poll(rk, 1000/*block for max 1000ms*/);
-                        goto retry3;
-                    } else{
-                        CHECK(0)<<" producer: "<<rd_kafka_err2str(rd_kafka_last_error());
-                    }
+                flag_data = "t";
+            }
+            retry3:
+            if(rd_kafka_produce(rkt,
+                                partition,
+                                RD_KAFKA_MSG_F_COPY,
+                                data_buff, data_size,
+                                flag_data.c_str(), 1,
+                                NULL) == -1){
+                if (rd_kafka_last_error() ==
+                    RD_KAFKA_RESP_ERR__QUEUE_FULL) {
+                    printf("queue full\n");
+                    rd_kafka_poll(rk, 1000);
+                    goto retry3;
+                } else{
+                    CHECK(0)<<" producer: "<<rd_kafka_err2str(rd_kafka_last_error());
                 }
             }
             rd_kafka_poll(rk, 0/*non-blocking*/);
+            if(data != NULL ){
+                delete static_cast<SArray<char>*>(data);
+            }
             send_bytes += data_size;
             //Debug: send data message
             DebugOut debug = DebugOut(my_node_);
@@ -356,9 +322,6 @@ protected:
     }
     int StartConsumer(){
         if (my_node_.id != Node::kEmpty){
-            //currConsumerTopic = topic when Bind()
-            //currConsumerPartition = 0 when Bind()
-
             currConsumerTopic = Postoffice::IDtoTopic(my_node_.id);
             currConsumerPartition = Postoffice::IDtoPartition(my_node_.id);//rank+1 or 0
         }
@@ -440,18 +403,20 @@ protected:
                 UnpackMeta(buf, size, &(msg->meta));//
                 rd_kafka_message_destroy(rkmessage);
 
-                if(Postoffice::Get()->is_worker() && msg->meta.control.empty() && msg->meta.push){
-                    re_push_cnt++;
-                    printf("recv reply push:%d\n",re_push_cnt);
-                } else if(Postoffice::Get()->is_server() && msg->meta.control.empty() && msg->meta.push){
-                    re_reply_push_cnt++;
-                    printf("recv push repuest:%d\n",re_reply_push_cnt);
-                } else if(Postoffice::Get()->is_worker() && msg->meta.control.empty() && !msg->meta.push){
-                    re_pull_cnt++;
-                    printf("recv reply pull:%d\n",re_pull_cnt);
-                } else if(Postoffice::Get()->is_server() && msg->meta.control.empty() && !msg->meta.push){
-                    re_reply_pull_cnt++;
-                    printf("recv pull repuest:%d\n",re_reply_pull_cnt);
+                if(DEBUGORNOT){
+                    if(Postoffice::Get()->is_worker() && msg->meta.control.empty() && msg->meta.push){
+                        re_push_cnt++;
+                        printf("recv reply push:%d\n",re_push_cnt);
+                    } else if(Postoffice::Get()->is_server() && msg->meta.control.empty() && msg->meta.push){
+                        re_reply_push_cnt++;
+                        printf("recv push repuest:%d\n",re_reply_push_cnt);
+                    } else if(Postoffice::Get()->is_worker() && msg->meta.control.empty() && !msg->meta.push){
+                        re_pull_cnt++;
+                        printf("recv reply pull:%d\n",re_pull_cnt);
+                    } else if(Postoffice::Get()->is_server() && msg->meta.control.empty() && !msg->meta.push){
+                        re_reply_pull_cnt++;
+                        printf("recv pull repuest:%d\n",re_reply_pull_cnt);
+                    }
                 }
                 DebugOut debug = DebugOut(my_node_);
                 debug.stream()<<" "<<"recvmsg from "
@@ -465,23 +430,10 @@ protected:
                 SArray<char> data;
                 data.reset(buf, size, [rkmessage, size](char* buf) {
                     rd_kafka_message_destroy(rkmessage);
+
                 });
                 msg->data.push_back(data);
-//
-//                if(i==1){
-//                    printf("kafka van recvmsg keys:\n");
-//                    for(auto it:data){
-//                        printf("%d ",it);
-//                    }
-//                    printf(" ending \n");
-//                } else{
-//                    printf("kafka van recvmsg vals:\n");
-//                    for(auto it:data){
-//                        printf("%lf ",it);
-//                    }
-//                    printf(" ending \n");
-//
-//                }
+
                 DebugOut debug = DebugOut(my_node_);
                 debug.stream()<<" "<<(i-1)<<"recvmsg from " \
                             <<Postoffice::IDtoRoleIDConst(msg->meta.sender) \

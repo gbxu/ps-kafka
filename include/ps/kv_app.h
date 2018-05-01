@@ -507,7 +507,6 @@ void KVWorker<Val>::DefaultSlicer(
 
 template <typename Val>
 void KVWorker<Val>::Send(int timestamp, bool push, int cmd, const KVPairs<Val>& kvs) {
-  printf("KVW::Send ");
   // slice the message
   SlicedKVs sliced;
 
