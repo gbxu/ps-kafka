@@ -200,7 +200,7 @@ protected:
 
     int SendMsg(Message& msg) override {
         std::lock_guard<std::mutex> lk(mu_);
-        if(DEBUGORNOT){
+        if(DEBUGPUSHPULL){
             if(Postoffice::Get()->is_worker() && msg.meta.control.empty() && msg.meta.push){
                 push_cnt++;
                 printf("push:%d\n",push_cnt);
@@ -233,11 +233,6 @@ protected:
         // send meta
         int meta_size; char* meta_buf;
         PackMeta(msg.meta, &meta_buf, &meta_size);
-//        char meta_buf_cp[meta_size];
-//        if(meta_buf != nullptr){
-//            strncpy(meta_buf_cp, meta_buf, meta_size);
-//            delete [] meta_buf;
-//        }
         int n = msg.data.size();
         std::string meta_flag;
         if(n == 0){
@@ -403,7 +398,7 @@ protected:
                 UnpackMeta(buf, size, &(msg->meta));//
                 rd_kafka_message_destroy(rkmessage);
 
-                if(DEBUGORNOT){
+                if(DEBUGPUSHPULL){
                     if(Postoffice::Get()->is_worker() && msg->meta.control.empty() && msg->meta.push){
                         re_push_cnt++;
                         printf("recv reply push:%d\n",re_push_cnt);

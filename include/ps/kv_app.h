@@ -542,15 +542,6 @@ void KVWorker<Val>::Send(int timestamp, bool push, int cmd, const KVPairs<Val>& 
         msg.AddData(kvs.lens);
       }
     }
-//    if(msg.meta.push){
-//      if(DEBUGORNOT){
-//        printf("Begin push:\n");
-//      }
-//    } else{
-//      if(DEBUGORNOT){
-//        printf("Begin Pull:\n");
-//      }
-//    }
     Postoffice::Get()->van()->Send(msg);
   }
 }
@@ -571,11 +562,6 @@ void KVWorker<Val>::Process(const Message& msg) {
     if (msg.data.size() > (size_t)2) {
       kvs.lens = msg.data[2];
     }
-//    printf("kvworker process keys:");
-//    for(auto it:kvs.keys){
-//        printf("%d ",it);
-//    }
-//    printf("\n");
     mu_.lock();
     recv_kvs_[ts].push_back(kvs);
     mu_.unlock();
