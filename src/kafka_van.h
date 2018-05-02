@@ -88,10 +88,11 @@ protected:
             rd_kafka_destroy(rk);
 
         }
-
+#ifdef DODEBUG
         DebugOut debug = DebugOut(my_node_);
         debug.stream()<<"finish";
         debug.Out();
+#endif
     }
 
     void Bind(const char *brokers, Topic topic) override {
@@ -99,9 +100,11 @@ protected:
         currConsumerPartition = 0;
         //consumer
         CHECK_NE(currConsumerTopic, NONE);//empty
+#ifdef DODEBUG
         DebugOut debug = DebugOut(my_node_);
         debug.stream()<<" Bind "<<TopicToConst(currConsumerTopic);
         debug.Out();
+#endif
         auto it = consumers_.find(TopicToConst(currConsumerTopic));// null
         if (it != consumers_.end()) {// exists, close the consumer
             RD rd = it->second;
@@ -157,9 +160,11 @@ protected:
         //brokers ip:port,ip:port,ip:port
         //brokers ip,ip:port,ip:port //default port is 9092
         CHECK_NE(topic, NONE);//empty
+#ifdef DODEBUG
         DebugOut tmp = DebugOut(my_node_);
         tmp.stream()<<" Connect: "<<TopicToConst(topic);
         tmp.Out();
+#endif
         auto it = producers_.find(TopicToConst(topic));// null
         if (it != producers_.end()) {// exists, close the producer
             RD rd = it->second;
@@ -208,21 +213,6 @@ protected:
 
     int SendMsg(Message& msg) override {
         std::lock_guard<std::mutex> lk(mu_);
-        if(DEBUGPUSHPULL){
-            if(Postoffice::Get()->is_worker() && msg.meta.control.empty() && msg.meta.push){
-                push_cnt++;
-                printf("push:%d\n",push_cnt);
-            } else if(Postoffice::Get()->is_server() && msg.meta.control.empty() && msg.meta.push){
-                reply_push_cnt++;
-                printf("reply push%d:\n",reply_push_cnt);
-            }else if(Postoffice::Get()->is_worker() && msg.meta.control.empty() && !msg.meta.push){
-                pull_cnt++;
-                printf("pull:%d\n",pull_cnt);
-            }else if(Postoffice::Get()->is_server() && msg.meta.control.empty() && !msg.meta.push){
-                reply_pull_cnt++;
-                printf("reply pull:%d\n",reply_pull_cnt);
-            }
-        }
 
         //topic partition
         msg.meta.sender = my_node_.id;
@@ -237,91 +227,41 @@ protected:
         RD rd = it->second;
         rd_kafka_t *rk = rd.rk;
         rd_kafka_topic_t *rkt = rd.rkt;
-
-        // send meta
-        int meta_size; char* meta_buf;
-        PackMeta(msg.meta, &meta_buf, &meta_size);
-        int n = msg.data.size();
-        std::string meta_flag;
-        if(n == 0){
-            meta_flag = "f";//no more
-        }else {
-            meta_flag = "t";
-        }
-        retry1:
+        void *data_buff = malloc(1 << 26);
+        int send_bytes = PackMsg(data_buff, msg)+req_data_size(msg);
+        retry:
         if(rd_kafka_produce(rkt,
                             partition,
                             RD_KAFKA_MSG_F_COPY,
-                            meta_buf, meta_size,
-                            meta_flag.c_str(), 1,
+                            (char *)data_buff, send_bytes,
+                            "f", 1,
                             NULL) == -1){
             if (rd_kafka_last_error() ==
                 RD_KAFKA_RESP_ERR__QUEUE_FULL) {
                 rd_kafka_poll(rk, 1000);
-                goto retry1;
+                goto retry;
             } else{
                 CHECK(0)<<" producer: "<<rd_kafka_err2str(rd_kafka_last_error());
             }
         }
         rd_kafka_poll(rk, 0/*non-blocking*/);
-        if(meta_buf!= nullptr){
-            delete [] static_cast<char*>(meta_buf);
-        }
-        //Debug: send meta message
+
+#ifdef DODEBUG
         DebugOut debug = DebugOut(my_node_);
         debug.stream()<<" "<<"sendmsg to:"<<Postoffice::IDtoRoleIDConst(msg.meta.recver) \
                         <<" :"<<msg.meta.control.DebugString() \
-                        <<" size :"<<meta_size;
+                        <<" size :"<<send_bytes;
         debug.Out();
-
-        int send_bytes = meta_size;
-        // send data
-        for (int i = 0; i < n; ++i) {
-            std::string flag_data;
-            std::string msg_data_cp;
-            SArray<char>* data = new SArray<char>(msg.data[i]);
-            int data_size = data->size();
-            char *data_buff = data->data();
-//            char data_buf_cp[data_size];
-//            strncpy(data_buf_cp, data->data(), data_size);
-//            if(data != NULL ){
-//                delete static_cast<SArray<char>*>(data);
-//            }
-            if (i == n - 1) {
-                //no more
-                flag_data = "f";
-            }else {
-                flag_data = "t";
-            }
-            retry3:
-            if(rd_kafka_produce(rkt,
-                                partition,
-                                RD_KAFKA_MSG_F_COPY,
-                                data_buff, data_size,
-                                flag_data.c_str(), 1,
-                                NULL) == -1){
-                if (rd_kafka_last_error() ==
-                    RD_KAFKA_RESP_ERR__QUEUE_FULL) {
-                    printf("queue full\n");
-                    rd_kafka_poll(rk, 1000);
-                    goto retry3;
-                } else{
-                    CHECK(0)<<" producer: "<<rd_kafka_err2str(rd_kafka_last_error());
-                }
-            }
-            rd_kafka_poll(rk, 0/*non-blocking*/);
-            if(data != NULL ){
-                delete static_cast<SArray<char>*>(data);
-            }
-            send_bytes += data_size;
-            //Debug: send data message
-            DebugOut debug = DebugOut(my_node_);
-            debug.stream()<<" "<<i<<"sendmsg to:"<<Postoffice::IDtoRoleIDConst(msg.meta.recver) \
-                        <<" :"<<msg.meta.control.DebugString() \
-                        <<" size :"<<data_size<<" "<<i<<"/"<<n;
-            debug.Out();
-        }
+#endif
+        free(data_buff);
         return send_bytes;
+    }
+    int req_data_size(const Message& msg) {
+        int size = 0;
+        for (int i = 0; i < msg.data.size(); i++) {
+            size += sizeof(int) + msg.data[i].size();
+        }
+        return size;
     }
     int StartConsumer(){
         if (my_node_.id != Node::kEmpty){
@@ -363,100 +303,103 @@ protected:
         RD rd = it->second;
         rd_kafka_t *rk = rd.rk;
         rd_kafka_topic_t *rkt = rd.rkt;
-        /*---------------*/
-        for (int i = 0; ; ++i) {
-            rd_kafka_message_t *rkmessage;
-            rd_kafka_resp_err_t err;
-
-            /* Poll for errors, etc. */
-            rd_kafka_poll(rk, 0);
-
-            /* Consume single message.
-             * See rdkafka_performance.c for high speed
-             * consuming of messages. */
-            while(1){
-                rkmessage = rd_kafka_consume(rkt, currConsumerPartition, 1000);//block:not time out 1000ms
-                if(!rkmessage){
+        rd_kafka_message_t *rkmessage;
+        rd_kafka_poll(rk, 0);
+        while(1){
+            rkmessage = rd_kafka_consume(rkt, currConsumerPartition, 1000);//block:not time out 1000ms
+            if(!rkmessage){
+                continue;
+            } else if(rkmessage->err){
+                if(rkmessage->err == RD_KAFKA_RESP_ERR__PARTITION_EOF){
                     continue;
-                } else if(rkmessage->err){
-                    if(rkmessage->err == RD_KAFKA_RESP_ERR__PARTITION_EOF){
-                        continue;
-                    }else{
-                        CHECK(0)<<" consumer: "<<rd_kafka_err2str(rkmessage->err);
-                    }
-                } else {
-                    break;
-                }
-            }
-            CHECK_EQ(rkmessage->err,0);
-            char* buf;
-            if((char *)rkmessage->payload == NULL){
-                buf = "";
-            }else{
-                buf = CHECK_NOTNULL((char *)rkmessage->payload);
-            }
-            size_t size = rkmessage->len;
-            recv_bytes += size;
-
-            char * tmp = (char *)rkmessage->key;
-            if (i == 0) {//meta
-                // identify
-                msg->meta.recver = my_node_.id;
-                // task
-                UnpackMeta(buf, size, &(msg->meta));//
-
-                if(DEBUGPUSHPULL){
-                    if(Postoffice::Get()->is_worker() && msg->meta.control.empty() && msg->meta.push){
-                        re_push_cnt++;
-                        printf("recv reply push:%d\n",re_push_cnt);
-                    } else if(Postoffice::Get()->is_server() && msg->meta.control.empty() && msg->meta.push){
-                        re_reply_push_cnt++;
-                        printf("recv push :%d\n",re_reply_push_cnt);
-                    } else if(Postoffice::Get()->is_worker() && msg->meta.control.empty() && !msg->meta.push){
-                        re_pull_cnt++;
-                        printf("recv reply pull:%d\n",re_pull_cnt);
-                    } else if(Postoffice::Get()->is_server() && msg->meta.control.empty() && !msg->meta.push){
-                        re_reply_pull_cnt++;
-                        printf("recv pull :%d\n",re_reply_pull_cnt);
-                    }
-                }
-                DebugOut debug = DebugOut(my_node_);
-                debug.stream()<<" "<<"recvmsg from "
-                            <<Postoffice::IDtoRoleIDConst(msg->meta.sender) \
-                            <<" :"<<msg->meta.control.DebugString() \
-                            <<" size:"<<size<<" "<<tmp[0];
-                debug.Out();
-                if (tmp[0] == 'f'){
-                    rd_kafka_message_destroy(rkmessage);
-                    break;
                 }else{
-                    rd_kafka_message_destroy(rkmessage);
+                    CHECK(0)<<" consumer: "<<rd_kafka_err2str(rkmessage->err);
                 }
             } else {
-                // zero-copy
-                SArray<char> data;
-                data.reset(buf, size, [rkmessage, size](char* buf) {
-                    rd_kafka_message_destroy(rkmessage);
-
-                });
-                msg->data.push_back(data);
-
-                DebugOut debug = DebugOut(my_node_);
-                debug.stream()<<" "<<(i-1)<<"recvmsg from " \
-                            <<Postoffice::IDtoRoleIDConst(msg->meta.sender) \
-                            <<" :"<<msg->meta.control.DebugString() \
-                            <<" size:"<<size<<" "<<tmp[0];//<<" data:"<<data;
-                debug.Out();
-
-
-                if (tmp[0] == 'f'){
-                    break;
-                }
+                break;
             }
         }
+        CHECK_EQ(rkmessage->err,0);
+        //void* buf = CHECK_NOTNULL(rkmessage->payload);
+        msg->meta.recver = my_node_.id;
+        void *buf = CHECK_NOTNULL(rkmessage->payload);
+        UnpackMsg(buf, msg);
+        size_t size = rkmessage->len;
+        recv_bytes += size;
+#ifdef DODEBUG
+        DebugOut debug = DebugOut(my_node_);
+        debug.stream()<<" "<<"recvmsg from "
+                      <<Postoffice::IDtoRoleIDConst(msg->meta.sender) \
+                            <<" :"<<msg->meta.control.DebugString() \
+                            <<" size:"<<size;
+        debug.Out();
+#endif
+        rd_kafka_message_destroy(rkmessage);
         return recv_bytes;
     }
+    /* pack message into send buf by xiaoniu */
+    int PackMsg(void* buf, const Message& msg) {
+        /* buf construct: meta_size, data_number, meta, data[1]_size, data[1], data[2]_size, data[2], ...*/
+        int n = msg.data.size();
+        int meta_size; char* meta_buf = (char*)buf + 2 * sizeof(int);
+        PackMeta(msg.meta, &meta_buf, &meta_size);
+#ifdef XNDEBUG
+        fprintf(stdout, "meta packed\n");
+#endif
+        *(int*)buf = meta_size;
+        *((int*)(buf + sizeof(int))) = n;
+        void* buf_tmp = buf + 2 * sizeof(int) + meta_size;
+        /* total_bytes actually does not include data: only meta_size and two int */
+        int total_bytes = meta_size + 2 * sizeof(int);
+        for (int i = 0; i < n; i++) {
+            int data_size = msg.data[i].size();
+#ifdef XNDEBUG
+            fprintf(stdout, "\t\tdata size required, is %d\n", data_size);
+#endif
+            memcpy(buf_tmp + sizeof(int), msg.data[i].data(), data_size);
+#ifdef XNDEBUG
+            fprintf(stdout, "\t\tdata %d copied\n", i);
+#endif
+            *(int*)buf_tmp = data_size;
+            buf_tmp += data_size + sizeof(int);
+        }
+#ifdef XNDEBUG
+        fprintf(stdout, "data in total %d packed\n", n);
+#endif
+        return total_bytes;
+    }
 
+    /* Unpack msg from recv buffer, return recv bytes by xiaoniu */
+    int UnpackMsg(void *buf, Message* msg) {
+        /* unpack Meta message */
+        void* buf_tmp = buf;
+        int meta_size = *(int*)buf_tmp;
+        buf_tmp += sizeof(int);
+        int data_num = *(int*)buf_tmp;
+        buf_tmp += sizeof(int);
+        UnpackMeta((char*)buf_tmp, meta_size, &(msg->meta));
+        /* set msg meta recver */
+        msg->meta.recver = my_node_.id;
+        buf_tmp += meta_size;
+        int total_bytes = meta_size + sizeof(int) * 2;
+        /* reset msg data */
+        for (int i = 0; i < data_num; i++) {
+            int data_size = *(int*)buf_tmp;
+            total_bytes += data_size + sizeof(int);
+#ifdef XNDEBUG
+            fprintf(stdout, "\t\t\tdata_size get %d\n", data_size);
+#endif
+            SArray<char> data;
+            data.CopyFrom((char*)(buf_tmp + sizeof(int)), data_size);
+
+#ifdef XNDEBUG
+            fprintf(stdout, "\t\t\tdata %d cpyed\n", i);
+#endif
+            msg->data.push_back(data);
+            buf_tmp += sizeof(int) + data_size;
+        }
+        return total_bytes;
+    }
 private:
     /**
      * \brief node_id to the socket for sending data to this node
@@ -468,14 +411,6 @@ private:
     int partitions_cnt;
     Topic currConsumerTopic;
     int currConsumerPartition;
-    int push_cnt = 0;
-    int pull_cnt = 0;
-    int reply_push_cnt = 0;
-    int reply_pull_cnt = 0;
-    int re_push_cnt = 0;
-    int re_pull_cnt = 0;
-    int re_reply_push_cnt = 0;
-    int re_reply_pull_cnt = 0;
 };
 }  // namespace ps
 #endif //PSLITE_KAFKA_VAN_H_

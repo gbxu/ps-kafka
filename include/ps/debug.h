@@ -11,8 +11,8 @@ server_id:8, 10, 12, …
 #ifndef PSKAFKA_DEBUG_H
 #define PSKAFKA_DEBUG_H
 
-#define DEBUGORNOT false
-#define DEBUGPUSHPULL false
+//#define XNDEBUG true
+//#define DODEBUG true
 #include "ps/internal/van.h"
 
 namespace ps {
@@ -27,9 +27,7 @@ public:
         return log_stream_;
     }
     void Out(){
-        if(DEBUGORNOT){
-            std::cout<<log_stream_.str()<<std::endl;
-        }
+        std::cout<<log_stream_.str()<<std::endl;
     }
 private:
     std::ostringstream log_stream_;

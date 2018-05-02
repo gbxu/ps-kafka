@@ -490,13 +490,19 @@ void Van::PackMeta(const Meta& meta, char** meta_buf, int* buf_size) {
 
   // to string
   *buf_size = pb.ByteSize();
-  *meta_buf = new char[*buf_size+1];
+  //*meta_buf = new char[*buf_size+1];
   CHECK(pb.SerializeToArray(*meta_buf, *buf_size))
     << "failed to serialize protbuf";
+
 }
 
 void Van::UnpackMeta(const char* meta_buf, int buf_size, Meta* meta) {
   // to protobuf
+//    printf("unpack:");
+//  for (int i = 0; i < buf_size; i++) {
+//    printf("%x,", (meta_buf)[i]);
+//  }
+//  printf("%d\n", buf_size);
   PBMeta pb;
   CHECK(pb.ParseFromArray(meta_buf, buf_size))
     << "failed to parse string into protobuf";
