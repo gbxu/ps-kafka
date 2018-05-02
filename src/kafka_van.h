@@ -22,7 +22,7 @@ namespace ps {
 const char* TopicToConst(Topic topic){
     switch (topic){
         case TOSCHEDULER:
-            return "TOSCHDULER";//to scheduler
+            return "TOSCHEDULER";//to scheduler
         case TOSERVERS:
             return  "TOSERVERS";// to servers
         case TOWORKERS:
