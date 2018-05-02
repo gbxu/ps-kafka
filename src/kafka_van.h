@@ -227,7 +227,7 @@ protected:
         RD rd = it->second;
         rd_kafka_t *rk = rd.rk;
         rd_kafka_topic_t *rkt = rd.rkt;
-        void *data_buff = malloc(1 << 26);
+        void *data_buff = malloc(1 << 26);//8 MB
         int send_bytes = PackMsg(data_buff, msg)+req_data_size(msg);
         retry:
         if(rd_kafka_produce(rkt,
