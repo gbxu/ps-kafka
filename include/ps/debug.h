@@ -11,7 +11,7 @@ server_id:8, 10, 12, …
 #ifndef PSKAFKA_DEBUG_H
 #define PSKAFKA_DEBUG_H
 
-#define DEBUGORNOT false
+#define DEBUGORNOT true
 #define DEBUGPUSHPULL false
 #include "ps/internal/van.h"
 
