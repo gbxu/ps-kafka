@@ -149,6 +149,7 @@ void Van::UpdateLocalID(Message* msg, std::unordered_set<int>* deadnodes_set,
     if (my_node_.hostname == node.hostname && my_node_.port == node.port) {//gbxu
       if (getenv("DMLC_RANK") == nullptr) {
         my_node_ = node;//update the my_node_.id
+        printf("INFO:%s\n",my_node_.DebugString().c_str());
         if(!is_scheduler_){
           StartConsumer();//wait the consumer, or it will loss msg //gbxu
           sleep(1);//TODO:optimization?
